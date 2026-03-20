@@ -69,7 +69,7 @@ project-root/
 ### 1. Clone repository
 
 ```bash
-git clone https://github.com/your-username/email-template-system.git
+git clone https://github.com/syxdiejen/GSP26_SAP490_Capstone.git
 cd email-template-system
 ```
 

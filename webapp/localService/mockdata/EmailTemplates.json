@@ -1,0 +1,29 @@
+[
+  {
+    "TemplateID": "T001",
+    "Name": "Welcome Email",
+    "Subject": "Welcome &CUSTOMER_NAME&",
+    "Body": "Dear &CUSTOMER_NAME&, welcome to our system.",
+    "CreatedBy": "ADMIN",
+    "CreatedAt": "/Date(1709251200000)/",
+    "Status": "ACTIVE"
+  },
+  {
+    "TemplateID": "T002",
+    "Name": "Reset Password",
+    "Subject": "Reset your password",
+    "Body": "Click here to reset password.",
+    "CreatedBy": "ADMIN",
+    "CreatedAt": "/Date(1709251200000)/",
+    "Status": "ACTIVE"
+  },
+  {
+    "TemplateID": "T003",
+    "Name": "Order Confirmation",
+    "Subject": "Order &ORDER_ID& confirmed",
+    "Body": "Your order &ORDER_ID& has been confirmed.",
+    "CreatedBy": "SYSTEM",
+    "CreatedAt": "/Date(1709251200000)/",
+    "Status": "INACTIVE"
+  }
+]

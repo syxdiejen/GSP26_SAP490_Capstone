@@ -1,0 +1,260 @@
+<mvc:View
+    controllerName="zemail.template.app.controller.dashboard.Dashboard"
+    xmlns="sap.m"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns:l="sap.ui.layout"
+    xmlns:core="sap.ui.core"
+    xmlns:viz="sap.viz.ui5.controls"
+    xmlns:viz.data="sap.viz.ui5.data"
+    xmlns:viz.feeds="sap.viz.ui5.controls.common.feeds">
+
+    <Page title="Dashboard">
+        <content>
+            <VBox class="sapUiSmallMargin">
+
+                <!-- KPI Tiles -->
+                <HBox
+                    wrap="Wrap"
+                    justifyContent="Start"
+                    class="sapUiSmallMarginBottom">
+
+                    <GenericTile
+                        header="Total Emails"
+                        frameType="OneByOne"
+                        class="sapUiTinyMarginEnd sapUiTinyMarginBottom">
+                        <TileContent>
+                            <NumericContent
+                                value="{/dashboard/summary/total}"
+                                valueColor="Neutral"
+                                withMargin="false" />
+                        </TileContent>
+                    </GenericTile>
+
+                    <GenericTile
+                        header="Success"
+                        frameType="OneByOne"
+                        class="sapUiTinyMarginEnd sapUiTinyMarginBottom">
+                        <TileContent>
+                            <NumericContent
+                                value="{/dashboard/summary/success}"
+                                valueColor="Good"
+                                withMargin="false" />
+                        </TileContent>
+                    </GenericTile>
+
+                    <GenericTile
+                        header="Failed"
+                        frameType="OneByOne"
+                        class="sapUiTinyMarginEnd sapUiTinyMarginBottom">
+                        <TileContent>
+                            <NumericContent
+                                value="{/dashboard/summary/failed}"
+                                valueColor="Error"
+                                withMargin="false" />
+                        </TileContent>
+                    </GenericTile>
+                </HBox>
+
+                <!-- Row 1: Donut + Recent Logs -->
+                <l:Grid
+                    defaultSpan="XL6 L6 M12 S12"
+                    hSpacing="1"
+                    vSpacing="1"
+                    class="sapUiSmallMarginBottom">
+
+                    <Panel headerText="Status Ratio">
+                        <content>
+                            <viz:VizFrame
+                                id="idDonutChart"
+                                uiConfig="{applicationSet:'fiori'}"
+                                vizType="donut"
+                                width="100%"
+                                height="320px">
+
+                                <viz:dataset>
+                                    <viz.data:FlattenedDataset data="{/dashboard/statusData}">
+                                        <viz.data:dimensions>
+                                            <viz.data:DimensionDefinition
+                                                name="Status"
+                                                value="{Status}" />
+                                        </viz.data:dimensions>
+                                        <viz.data:measures>
+                                            <viz.data:MeasureDefinition
+                                                name="Count"
+                                                value="{Count}" />
+                                        </viz.data:measures>
+                                    </viz.data:FlattenedDataset>
+                                </viz:dataset>
+
+                                <viz:feeds>
+                                    <viz.feeds:FeedItem
+                                        uid="size"
+                                        type="Measure"
+                                        values="Count" />
+                                    <viz.feeds:FeedItem
+                                        uid="color"
+                                        type="Dimension"
+                                        values="Status" />
+                                </viz:feeds>
+                            </viz:VizFrame>
+                        </content>
+                    </Panel>
+
+                    <Panel headerText="Recent Logs">
+                        <content>
+                            <Table
+                                items="{/dashboard/recentLogs}"
+                                inset="false">
+
+                                <columns>
+                                    <Column>
+                                        <Text text="Template" />
+                                    </Column>
+                                    <Column>
+                                        <Text text="Recipient" />
+                                    </Column>
+                                    <Column minScreenWidth="Tablet" demandPopin="true">
+                                        <Text text="Time" />
+                                    </Column>
+                                    <Column hAlign="Center">
+                                        <Text text="Status" />
+                                    </Column>
+                                </columns>
+
+                                <items>
+                                    <ColumnListItem>
+                                        <cells>
+                                            <Text text="{TemplateName}" />
+                                            <Text text="{Recipient}" />
+                                            <Text text="{path: 'SentAt', formatter: '.formatDateTime'}" />
+                                            <ObjectStatus
+                                                text="{Status}"
+                                                state="{path: 'Status', formatter: '.formatStatusState'}" />
+                                        </cells>
+                                    </ColumnListItem>
+                                </items>
+                            </Table>
+                        </content>
+                    </Panel>
+                </l:Grid>
+
+                <!-- Row 2: Daily chart + Template usage -->
+                <l:Grid
+                    defaultSpan="XL6 L6 M12 S12"
+                    hSpacing="1"
+                    vSpacing="1"
+                    class="sapUiSmallMarginBottom">
+
+                    <Panel headerText="Emails Sent by Day">
+                        <content>
+                            <viz:VizFrame
+                                id="idColumnChart"
+                                uiConfig="{applicationSet:'fiori'}"
+                                vizType="column"
+                                width="100%"
+                                height="320px">
+
+                                <viz:dataset>
+                                    <viz.data:FlattenedDataset data="{/dashboard/dailyData}">
+                                        <viz.data:dimensions>
+                                            <viz.data:DimensionDefinition
+                                                name="Date"
+                                                value="{Date}" />
+                                        </viz.data:dimensions>
+                                        <viz.data:measures>
+                                            <viz.data:MeasureDefinition
+                                                name="Emails"
+                                                value="{Count}" />
+                                        </viz.data:measures>
+                                    </viz.data:FlattenedDataset>
+                                </viz:dataset>
+
+                                <viz:feeds>
+                                    <viz.feeds:FeedItem
+                                        uid="valueAxis"
+                                        type="Measure"
+                                        values="Emails" />
+                                    <viz.feeds:FeedItem
+                                        uid="categoryAxis"
+                                        type="Dimension"
+                                        values="Date" />
+                                </viz:feeds>
+                            </viz:VizFrame>
+                        </content>
+                    </Panel>
+
+                    <Panel headerText="Top Email Templates Used">
+                        <content>
+                            <viz:VizFrame
+                                id="idBarChart"
+                                uiConfig="{applicationSet:'fiori'}"
+                                vizType="bar"
+                                width="100%"
+                                height="320px">
+
+                                <viz:dataset>
+                                    <viz.data:FlattenedDataset data="{/dashboard/templateUsage}">
+                                        <viz.data:dimensions>
+                                            <viz.data:DimensionDefinition
+                                                name="Template"
+                                                value="{TemplateName}" />
+                                        </viz.data:dimensions>
+                                        <viz.data:measures>
+                                            <viz.data:MeasureDefinition
+                                                name="Usage Count"
+                                                value="{Count}" />
+                                        </viz.data:measures>
+                                    </viz.data:FlattenedDataset>
+                                </viz:dataset>
+
+                                <viz:feeds>
+                                    <viz.feeds:FeedItem
+                                        uid="valueAxis"
+                                        type="Measure"
+                                        values="Usage Count" />
+                                    <viz.feeds:FeedItem
+                                        uid="categoryAxis"
+                                        type="Dimension"
+                                        values="Template" />
+                                </viz:feeds>
+                            </viz:VizFrame>
+                        </content>
+                    </Panel>
+                </l:Grid>
+
+                <!-- Extra section: failed template overview -->
+                <Panel
+                    headerText="Failed Templates Overview"
+                    class="sapUiSmallMarginBottom">
+                    <content>
+                        <Table
+                            items="{/dashboard/topFailedTemplates}"
+                            inset="false">
+
+                            <columns>
+                                <Column>
+                                    <Text text="Template" />
+                                </Column>
+                                <Column hAlign="End">
+                                    <Text text="Failed Count" />
+                                </Column>
+                            </columns>
+
+                            <items>
+                                <ColumnListItem>
+                                    <cells>
+                                        <Text text="{TemplateName}" />
+                                        <ObjectNumber
+                                            number="{FailedCount}"
+                                            state="Error" />
+                                    </cells>
+                                </ColumnListItem>
+                            </items>
+                        </Table>
+                    </content>
+                </Panel>
+
+            </VBox>
+        </content>
+    </Page>
+</mvc:View>

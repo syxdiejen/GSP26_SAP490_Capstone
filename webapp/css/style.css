@@ -1,0 +1,88 @@
+/* ===== DETAIL PAGE ===== */
+.emailDetailTemplate .detailPageWrapper {
+    max-width: 96rem;
+    margin: 0 auto;
+}
+
+.emailDetailTemplate .emailPreviewShell {
+    display: flex;
+    justify-content: center;
+    transition: all 0.25s ease;
+}
+
+.emailDetailTemplate .emailCard {
+    width: 100%;
+    margin: 0 auto;
+    background: var(--sapBackgroundColor);
+    border-radius: 1rem;
+    border: 0.0625rem solid var(--sapList_BorderColor);
+    box-shadow: 0 0.25rem 1rem rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+}
+
+/* width theo device mode */
+.emailDetailTemplate .previewDesktop .emailCard {
+    max-width: 60rem;
+}
+
+.emailDetailTemplate .previewTablet .emailCard {
+    max-width: 48rem;
+}
+
+.emailDetailTemplate .previewMobile .emailCard {
+    max-width: 23rem;
+}
+
+/* Header */
+.emailDetailTemplate .emailHeader {
+    padding: 1rem 1.25rem;
+    border-bottom: 0.0625rem solid var(--sapList_BorderColor);
+    background: var(--sapList_Background);
+}
+
+.emailDetailTemplate .emailHeader .label {
+    width: 5rem;
+    min-width: 5rem;
+    color: var(--sapContent_LabelColor);
+    font-weight: 600;
+}
+
+.emailDetailTemplate .emailHeader .value {
+    color: var(--sapTextColor);
+    word-break: break-word;
+}
+
+.emailDetailTemplate .emailHeader .valueBold {
+    font-weight: 700;
+    color: var(--sapTextColor);
+    word-break: break-word;
+}
+
+/* Body */
+.emailDetailTemplate .emailBody {
+    padding: 1.5rem;
+    line-height: 1.6;
+    color: var(--sapTextColor);
+    min-height: 24rem;
+    max-height: 38rem;
+    overflow-y: auto;
+    background: #fff;
+}
+
+/* HTML content bên trong email */
+.emailDetailTemplate .emailBody > div {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Mobile tinh chỉnh */
+@media (max-width: 768px) {
+    .emailDetailTemplate .emailHeader .label {
+        width: 4rem;
+        min-width: 4rem;
+    }
+
+    .emailDetailTemplate .emailBody {
+        padding: 1rem;
+    }
+}

@@ -1,0 +1,24 @@
+<mvc:View
+    controllerName="zemail.template.app.controller.layout.Header"
+    xmlns="sap.m"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns:tnt="sap.tnt">
+
+    <tnt:ToolHeader>
+
+        <Image src="https://www.sap.com/dam/application/shared/logos/sap-logo-svg.svg"
+           height="28px"/>
+        <Title text="GSP26_SAP13"/>
+
+        <ToolbarSpacer/>
+
+        <Button icon="sap-icon://message-popup"/>
+        <Button icon="sap-icon://search"/>
+        <Button icon="sap-icon://question-mark"/>
+        <Button icon="sap-icon://bell"/>
+
+        <Button text="Save" type="Emphasized"/>
+
+    </tnt:ToolHeader>
+
+</mvc:View>

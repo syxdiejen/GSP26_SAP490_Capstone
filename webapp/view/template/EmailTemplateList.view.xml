@@ -1,0 +1,114 @@
+<mvc:View
+    controllerName="zemail.template.app.controller.template.EmailTemplateList"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns="sap.m"
+    xmlns:core="sap.ui.core"
+    xmlns:f="sap.f">
+
+    <f:DynamicPage>
+        <f:title>
+            <f:DynamicPageTitle>
+                <f:heading>
+                    <Title text="{i18n>emailTemplateListTitle}"/>
+                </f:heading>
+
+                <f:actions>
+                    <Button icon="sap-icon://overflow" type="Transparent"/>
+
+                    <Button
+                        text="Create Email"
+                        type="Emphasized"
+                        press=".onCreateEmail"/>
+
+                </f:actions>
+            </f:DynamicPageTitle>
+        </f:title>
+
+        <f:header>
+            <f:DynamicPageHeader pinnable="true"> 
+                <HBox alignItems="Center"
+                      justifyContent="Start"
+                      wrap="Wrap">
+                    <SearchField
+                        width="300px"
+                        placeholder="Search"
+                        liveChange=".onSearch"
+                        class="sapUiSmallMarginEnd"/>
+
+                    <Label text="Category" 
+                           class="sapUiSmallMarginEnd"/>
+
+                    <Select width="150px" class="sapUiSmallMarginEnd">
+                        <core:Item key="All" text="Show All"/>
+                    </Select>
+
+                    <Button icon="sap-icon://filter"
+                            type="Transparent"
+                            text="More Filters"/>
+                </HBox>
+            </f:DynamicPageHeader>
+        </f:header>
+
+        <f:content> 
+            <Table  id="emailTemplateTable"
+                    sticky="HeaderToolbar,ColumnHeaders"
+                    items="{email>/EmailTemplates}"
+                    growing="true"
+                    growingScrollToLoad="true">
+                <columns>
+                    <Column>
+                        <Text text="Email Template Name"/>
+                    </Column>
+                    <Column>
+                        <Text text="Subject"/>
+                    </Column>
+                    <Column>
+                        <Text text="Status"/>
+                    </Column>
+                    <Column width="5rem" hAlign="Center">
+                        <Text text=""/>
+                    </Column>
+                    <Column hAlign="End">
+                        <Text text=""/>
+                    </Column>
+                </columns>
+
+                <items>
+                <ColumnListItem
+                    type="Navigation"
+                    press=".onItemPress"
+                    >
+                    <cells>
+                        <Text text="{email>Name}"/>
+                        <Text text="{email>Subject}"/>
+                        <ObjectStatus
+                            text="{
+                                path: 'email>Active',
+                                formatter: '.formatter.statusText'
+                            }"
+                            state="{
+                                path: 'email>Active',
+                                formatter: '.formatter.statusState'
+                            }"/>
+
+                        <Switch
+                            state="{email>Active}"
+                            customTextOn="✓"
+                            customTextOff="—"
+                            change=".onToggleActive"/>
+
+                        <HBox justifyContent="End">
+                            <Button icon="sap-icon://edit" type="Transparent" press=".onEditTemplate"/>
+                            <Button icon="sap-icon://copy" type="Transparent" press=".onCopyTemplate"/>
+                            <Button icon="sap-icon://delete" type="Transparent" press=".onDeleteTemplate"/>
+                        </HBox>
+                    </cells>
+                </ColumnListItem>
+                </items>
+
+            </Table>    
+
+        </f:content>
+    </f:DynamicPage>
+</mvc:View>
+

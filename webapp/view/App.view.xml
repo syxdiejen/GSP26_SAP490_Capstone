@@ -1,0 +1,62 @@
+<mvc:View
+    controllerName="zemail.template.app.controller.App"
+    xmlns="sap.m"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns:core="sap.ui.core"
+    xmlns:tnt="sap.tnt"
+    displayBlock="true">
+
+<Shell>
+
+<tnt:ToolPage id="toolPage">
+
+    <!-- HEADER -->
+    <tnt:header>
+        <mvc:XMLView viewName="zemail.template.app.view.layout.Header"/>
+    </tnt:header>
+
+    
+    <!-- LEFT NAVIGATION -->
+    <tnt:sideContent> 
+        <tnt:SideNavigation> 
+            <tnt:NavigationList itemSelect="onItemSelect"> 
+                <tnt:NavigationListItem 
+                    text="Email Templates" 
+                    icon="sap-icon://email" 
+                    key="templatelist" /> 
+                    
+                <!-- <tnt:NavigationListItem 
+                    text="Create Email" 
+                    icon="sap-icon://add" 
+                    />  -->
+                    
+                <tnt:NavigationListItem 
+                    text="Log Email" 
+                    icon="sap-icon://marketing-campaign"
+                    key="emaillogs"/> 
+                    
+                <!-- <tnt:NavigationListItem 
+                    text="Settings" 
+                    icon="sap-icon://action-settings"/>  -->
+
+                <tnt:NavigationListItem 
+                    text="Dashboard" 
+                    key="dashboard"
+                    icon="sap-icon://business-objects-experience" />
+                    
+            </tnt:NavigationList> 
+        </tnt:SideNavigation> 
+    </tnt:sideContent>
+
+    <!-- PAGE CONTENT -->
+    <tnt:mainContents>
+
+        <App id="app"/>
+
+    </tnt:mainContents>
+
+</tnt:ToolPage>
+
+</Shell>
+
+</mvc:View>

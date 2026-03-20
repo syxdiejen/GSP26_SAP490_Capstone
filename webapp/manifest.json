@@ -1,0 +1,119 @@
+{
+  "_version": "1.65.0",
+  "sap.app": {
+    "id": "zemail.template.app",
+    "i18n": "i18n/i18n.properties",
+	  "title": "{{appTitle}}",
+	  "description": "{{appDescription}}",
+	  "type": "application",
+	  "applicationVersion": {
+	  "version": "1.0.0"
+	},
+	"dataSources": {
+      "emailService": {
+        "uri": "/emailService/",
+        "type": "OData",
+        "settings": {
+          "odataVersion": "2.0"
+        }
+      }
+    }
+  },
+    "sap.ui": {
+	"technology": "UI5",
+	"deviceTypes": {
+		"desktop": true,
+		"tablet": true,
+		"phone": true
+	}
+  },"sap.ui5": {
+	"dependencies": {
+	  "minUI5Version": "1.108.0",
+	  "libs": {
+		"sap.ui.core": {},
+		"sap.m": {},
+		"sap.f":{},
+		"sap.tnt":{},
+		"sap.ui.layout": {},
+      	"sap.viz": {}
+	  }
+	},
+	"models": {
+	  "i18n": {
+		"type": "sap.ui.model.resource.ResourceModel",
+		"settings": {
+		  	"bundleName": "zemail.template.app.i18n.i18n",
+		   	"supportedLocales": ["", "en", "vi"],
+  			"fallbackLocale": "en"
+		}
+	  },
+	  "email": {
+  	  	"type": "sap.ui.model.json.JSONModel",
+  	  	"uri"	: "emailTemplates.json"
+	  }
+	},
+	"rootView": {
+		"viewName": "zemail.template.app.view.App",
+		"type": "XML",
+		"id": "app"
+	},
+	"routing": {
+		"config":{
+			"routerClass": "sap.m.routing.Router",
+			"type": "View",
+			"viewType": "XML",
+			"path": "zemail.template.app.view",
+			"controlId": "app",
+			"controlAggregation": "pages",
+			"async": true
+		},
+		"routes": [
+		{
+			"pattern": "",
+			"name": "templatelist",
+			"target": "templatelist"
+		},
+		{
+			"pattern": "detail/{emailPath}",
+			"name": "detail",
+			"target": "detail"
+		},
+		{
+			"pattern": "dashboard",
+			"name": "dashboard",
+			"target": "dashboard"
+		},
+		{
+			"pattern": "emaillogs",
+			"name": "emaillogs",
+			"target": "emaillogs"
+		}
+		],
+		"targets": {
+			"templatelist": {
+				"id": "templatelist",
+				"name": "template.EmailTemplateList"
+			},
+			"detail": {
+				"id": "detail",
+				"name": "template.Detail"
+			},
+			"dashboard": {
+				"id": "dashboard",
+				"name": "dashboard.Dashboard"
+			},
+			"emaillogs": {
+				"id": "emaillogs",
+				"name": "logs.EmailLogs"
+			}
+		}
+	},
+	"resources": {
+		"css": [
+			{
+				"uri": "css/style.css"
+			}
+		]
+	}
+  }
+}

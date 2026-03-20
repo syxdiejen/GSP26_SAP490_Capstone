@@ -1,0 +1,93 @@
+<mvc:View
+    controllerName="zemail.template.app.controller.logs.EmailLogs"
+    xmlns="sap.m"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns:core="sap.ui.core"
+    xmlns:f="sap.f">
+
+    <f:DynamicPage>
+        <f:title>
+            <f:DynamicPageTitle>
+                <f:heading>
+                    <Title text="Email Logs"/>
+                </f:heading>
+            </f:DynamicPageTitle>
+        </f:title>
+
+        <f:header>
+            <f:DynamicPageHeader pinnable="true">
+                <HBox alignItems="Center"
+                      justifyContent="Start"
+                      wrap="Wrap">
+
+                    <SearchField
+                        width="280px"
+                        placeholder="Search recipient"
+                        liveChange=".onFilterChange"
+                        class="sapUiSmallMarginEnd"/>
+
+                    <MultiComboBox
+                        width="220px"
+                        selectionFinish=".onFilterChange"
+                        class="sapUiSmallMarginEnd"
+                        placeholder="Select status">
+                        <core:Item key="SUCCESS" text="Success"/>
+                        <core:Item key="FAILED" text="Failed"/>
+                    </MultiComboBox>
+
+                    <DateRangeSelection
+                        width="260px"
+                        displayFormat="yyyy-MM-dd"
+                        valueFormat="yyyy-MM-dd"
+                        change=".onFilterChange"
+                        class="sapUiSmallMarginEnd"/>
+
+                    <Button
+                        text="Clear"
+                        press=".onClearFilter"/>
+                </HBox>
+            </f:DynamicPageHeader>
+        </f:header>
+
+        <f:content>
+            <Table
+                items="{/filteredLogs}"
+                sticky="ColumnHeaders">
+                <columns>
+                    <Column>
+                        <Text text="Recipient"/>
+                    </Column>
+                    <Column>
+                        <Text text="Status"/>
+                    </Column>
+                    <Column>
+                        <Text text="Sent At"/>
+                    </Column>
+                    <Column hAlign="Center" width="8rem">
+                        <Text text="Action"/>
+                    </Column>
+                </columns>
+
+                <items>
+                    <ColumnListItem>
+                        <cells>
+                            <Text text="{Recipient}"/>
+
+                            <ObjectStatus
+                                text="{Status}"
+                                state="{= ${Status} === 'SUCCESS' ? 'Success' : 'Error' }"/>
+
+                            <Text text="{SentAt}"/>
+
+                            <Button
+                                icon="sap-icon://display"
+                                type="Transparent"
+                                tooltip="View Detail"
+                                press=".onViewDetail"/>
+                        </cells>
+                    </ColumnListItem>
+                </items>
+            </Table>
+        </f:content>
+    </f:DynamicPage>
+</mvc:View>

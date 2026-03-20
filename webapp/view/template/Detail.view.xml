@@ -1,0 +1,109 @@
+<mvc:View
+    controllerName="zemail.template.app.controller.template.Detail"
+    xmlns="sap.m"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns:core="sap.ui.core"
+    xmlns:f="sap.f">
+
+    <Page
+        title="Template Preview"
+        class="emailDetailTemplate"
+        showNavButton="true"
+        navButtonPress=".onNavBack">
+
+        <content>
+            <VBox class="detailPageWrapper sapUiResponsiveContentPadding">
+
+                <!-- Top toolbar -->
+                <HBox
+                    justifyContent="SpaceBetween"
+                    alignItems="Center"
+                    class="sapUiSmallMarginBottom"
+                    wrap="Wrap">
+
+                    <VBox>
+                        <!-- <Title text="{email>Name}" level="H3"/>
+                        <Text text="{email>Description}" class="sapUiTinyMarginTop"/> -->
+                    </VBox>
+
+                    <HBox alignItems="Center" class="sapUiTinyMarginTop" wrap="Wrap">
+                        <Text text="Preview Mode" class="sapUiTinyMarginEnd"/>
+                        <SegmentedButton selectedKey="desktop" selectionChange=".onPreviewModeChange">
+                            <items>
+                                <SegmentedButtonItem key="desktop" icon="sap-icon://desktop-mobile" text="Desktop"/>
+                                <SegmentedButtonItem key="tablet" icon="sap-icon://tablet" text="Tablet"/>
+                                <SegmentedButtonItem key="mobile" icon="sap-icon://iphone" text="Mobile"/>
+                            </items>
+                        </SegmentedButton>
+                    </HBox>
+                </HBox>
+
+                <!-- Preview card -->
+                <VBox id="previewWrapper" class="emailPreviewShell previewDesktop">
+                    <Panel class="emailCard" width="100%">
+
+                        <headerToolbar>
+                            <OverflowToolbar>
+                                <Title text="Email Preview" level="H4"/>
+                                <ToolbarSpacer/>
+                            <ObjectStatus
+                                text="{
+                                    path: 'email>Active',
+                                    formatter: '.formatter.statusText'
+                                }"
+                                state="{
+                                    path: 'email>Active',
+                                    formatter: '.formatter.statusState'
+                                }"/>
+                            </OverflowToolbar>
+                        </headerToolbar>
+
+                        <content>
+                            <!-- Email header -->
+                            <VBox class="emailHeader">
+                                <HBox class="sapUiTinyMarginBottom" wrap="Wrap">
+                                    <Text text="From:" class="label"/>
+                                    <Text text="{email>From}" class="value"/>
+                                </HBox>
+
+                                <HBox class="sapUiTinyMarginBottom" wrap="Wrap">
+                                    <Text text="To:" class="label"/>
+                                    <Text text="{email>To}" class="value"/>
+                                </HBox>
+
+                                <HBox
+                                    class="sapUiTinyMarginBottom"
+                                    wrap="Wrap"
+                                    visible="{= !!${email>CC} }">
+                                    <Text text="CC:" class="label"/>
+                                    <Text text="{email>CC}" class="value"/>
+                                </HBox>
+
+                                <HBox
+                                    class="sapUiTinyMarginBottom"
+                                    wrap="Wrap"
+                                    visible="{= !!${email>BCC} }">
+                                    <Text text="BCC:" class="label"/>
+                                    <Text text="{email>BCC}" class="value"/>
+                                </HBox>
+
+                                <HBox wrap="Wrap">
+                                    <Text text="Subject:" class="label"/>
+                                    <Text text="{email>Subject}" class="valueBold"/>
+                                </HBox>
+                            </VBox>
+
+                            <!-- Email body -->
+                            <VBox class="emailBody">
+                                <core:HTML
+                                    id="htmlPreview"
+                                    content="{email>Body}"
+                                    sanitizeContent="true"/>
+                            </VBox>
+                        </content>
+                    </Panel>
+                </VBox>
+            </VBox>
+        </content>
+    </Page>
+</mvc:View>

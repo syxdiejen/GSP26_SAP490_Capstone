@@ -2,3 +2,22 @@ specVersion: "4.0"
 metadata:
   name: ui5
 type: application
+
+server:
+  customMiddleware:
+    - name: fiori-tools-proxy
+      afterMiddleware: compression
+      configuration:
+        ignoreCertError: true
+        backend:
+          - path: /sap
+            url: https://s40lp1.ucc.cit.tum.de:8100
+            client: "324"
+        ui5:
+          path:
+            - /resources
+            - /test-resources
+          url: https://ui5.sap.com
+    - name: fiori-tools-appreload
+      afterMiddleware: fiori-tools-proxy
+      

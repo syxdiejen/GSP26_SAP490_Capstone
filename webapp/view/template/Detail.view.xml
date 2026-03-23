@@ -3,107 +3,206 @@
     xmlns="sap.m"
     xmlns:mvc="sap.ui.core.mvc"
     xmlns:core="sap.ui.core"
-    xmlns:f="sap.f">
+    xmlns:layout="sap.ui.layout"
+    xmlns:forms="sap.ui.layout.form">
 
     <Page
         title="Template Preview"
-        class="emailDetailTemplate"
         showNavButton="true"
         navButtonPress=".onNavBack">
 
+        <headerContent>
+            <Button
+                icon="sap-icon://settings"
+                text="Test Data"
+                press=".onToggleSideContent" />
+        </headerContent>
+
         <content>
-            <VBox class="detailPageWrapper sapUiResponsiveContentPadding">
+            <layout:DynamicSideContent
+                id="idDynamicSideContent"
+                sideContentFallDown="BelowM"
+                sideContentPosition="End"
+                containerQuery="true"
+                showSideContent="true">
 
-                <!-- Top toolbar -->
-                <HBox
-                    justifyContent="SpaceBetween"
-                    alignItems="Center"
-                    class="sapUiSmallMarginBottom"
-                    wrap="Wrap">
-
-                    <VBox>
-                        <!-- <Title text="{email>Name}" level="H3"/>
-                        <Text text="{email>Description}" class="sapUiTinyMarginTop"/> -->
-                    </VBox>
-
-                    <HBox alignItems="Center" class="sapUiTinyMarginTop" wrap="Wrap">
-                        <Text text="Preview Mode" class="sapUiTinyMarginEnd"/>
+                <!-- MAIN CONTENT -->
+                <VBox class="sapUiSmallMargin">
+                    <HBox justifyContent="SpaceBetween" alignItems="Center" class="sapUiSmallMarginBottom">
+                        <Title level="H4"/>
                         <SegmentedButton selectedKey="desktop" selectionChange=".onPreviewModeChange">
                             <items>
-                                <SegmentedButtonItem key="desktop" icon="sap-icon://desktop-mobile" text="Desktop"/>
-                                <SegmentedButtonItem key="tablet" icon="sap-icon://tablet" text="Tablet"/>
-                                <SegmentedButtonItem key="mobile" icon="sap-icon://iphone" text="Mobile"/>
+                                <SegmentedButtonItem key="desktop" icon="sap-icon://desktop-mobile"/>
+                                <SegmentedButtonItem key="tablet" icon="sap-icon://tablet"/>
+                                <SegmentedButtonItem key="mobile" icon="sap-icon://iphone"/>
                             </items>
                         </SegmentedButton>
                     </HBox>
-                </HBox>
 
-                <!-- Preview card -->
-                <VBox id="previewWrapper" class="emailPreviewShell previewDesktop">
-                    <Panel class="emailCard" width="100%">
+                    <VBox id="previewWrapper" class="emailPreviewShell previewDesktop">
+                        <Panel class="emailCard" width="100%">
+                            <headerToolbar>
+                                <OverflowToolbar>
+                                    <Title text="Email Preview" level="H4"/>
+                                    <ToolbarSpacer/>
+                                    <ObjectStatus
+                                        text="{
+                                            path: 'email>Active',
+                                            formatter: '.formatter.statusText'
+                                        }"
+                                        state="{
+                                            path: 'email>Active',
+                                            formatter: '.formatter.statusState'
+                                        }"/>
+                                </OverflowToolbar>
+                            </headerToolbar>
 
-                        <headerToolbar>
-                            <OverflowToolbar>
-                                <Title text="Email Preview" level="H4"/>
-                                <ToolbarSpacer/>
-                            <ObjectStatus
-                                text="{
-                                    path: 'email>Active',
-                                    formatter: '.formatter.statusText'
-                                }"
-                                state="{
-                                    path: 'email>Active',
-                                    formatter: '.formatter.statusState'
-                                }"/>
-                            </OverflowToolbar>
-                        </headerToolbar>
+                            <content>
+                                <VBox class="emailHeader sapUiSmallMargin">
+                                    <HBox class="sapUiTinyMarginBottom" wrap="Wrap">
+                                        <Text text="From:" class="label"/>
+                                        <Text text="{preview>/fields/from}" class="value"/>
+                                    </HBox>
 
-                        <content>
-                            <!-- Email header -->
-                            <VBox class="emailHeader">
-                                <HBox class="sapUiTinyMarginBottom" wrap="Wrap">
-                                    <Text text="From:" class="label"/>
-                                    <Text text="{email>From}" class="value"/>
-                                </HBox>
+                                    <HBox class="sapUiTinyMarginBottom" wrap="Wrap">
+                                        <Text text="To:" class="label"/>
+                                        <Text text="{preview>/fields/to}" class="value"/>
+                                    </HBox>
 
-                                <HBox class="sapUiTinyMarginBottom" wrap="Wrap">
-                                    <Text text="To:" class="label"/>
-                                    <Text text="{email>To}" class="value"/>
-                                </HBox>
+                                    <HBox
+                                        class="sapUiTinyMarginBottom"
+                                        wrap="Wrap"
+                                        visible="{= !!${preview>/fields/cc} }">
+                                        <Text text="CC:" class="label"/>
+                                        <Text text="{preview>/fields/cc}" class="value"/>
+                                    </HBox>
 
-                                <HBox
-                                    class="sapUiTinyMarginBottom"
-                                    wrap="Wrap"
-                                    visible="{= !!${email>CC} }">
-                                    <Text text="CC:" class="label"/>
-                                    <Text text="{email>CC}" class="value"/>
-                                </HBox>
+                                    <HBox
+                                        class="sapUiTinyMarginBottom"
+                                        wrap="Wrap"
+                                        visible="{= !!${preview>/fields/bcc} }">
+                                        <Text text="BCC:" class="label"/>
+                                        <Text text="{preview>/fields/bcc}" class="value"/>
+                                    </HBox>
 
-                                <HBox
-                                    class="sapUiTinyMarginBottom"
-                                    wrap="Wrap"
-                                    visible="{= !!${email>BCC} }">
-                                    <Text text="BCC:" class="label"/>
-                                    <Text text="{email>BCC}" class="value"/>
-                                </HBox>
+                                    <HBox wrap="Wrap">
+                                        <Text text="Subject:" class="label"/>
+                                        <Text text="{preview>/renderedSubject}" class="valueBold"/>
+                                    </HBox>
+                                </VBox>
 
-                                <HBox wrap="Wrap">
-                                    <Text text="Subject:" class="label"/>
-                                    <Text text="{email>Subject}" class="valueBold"/>
-                                </HBox>
-                            </VBox>
-
-                            <!-- Email body -->
-                            <VBox class="emailBody">
-                                <core:HTML
-                                    id="htmlPreview"
-                                    content="{email>Body}"
-                                    sanitizeContent="true"/>
-                            </VBox>
-                        </content>
-                    </Panel>
+                                <VBox class="emailBody sapUiSmallMargin">
+                                    <core:HTML
+                                        id="htmlPreview"
+                                        content="{preview>/renderedHtml}"
+                                        sanitizeContent="true"/>
+                                </VBox>
+                            </content>
+                        </Panel>
+                    </VBox>
                 </VBox>
-            </VBox>
+
+                <!-- SIDE CONTENT -->
+                <layout:sideContent>
+                    <VBox class="sapUiSmallMargin">
+                        <Title text="Variables Engine" level="H4" class="sapUiSmallMarginBottom"/>
+                        <Text text="Nhập dữ liệu test để render biến trong email" class="sapUiSmallMarginBottom"/>
+
+                        <forms:SimpleForm
+                            editable="true"
+                            layout="ResponsiveGridLayout"
+                            labelSpanL="12"
+                            labelSpanM="12"
+                            emptySpanL="0"
+                            emptySpanM="0"
+                            columnsL="1"
+                            columnsM="1">
+
+                            <forms:content>
+                                <Title text="Default Mail Fields" level="H5"/>
+
+                                <Label text="From"/>
+                                <Input
+                                    value="{preview>/fields/from}"
+                                    liveChange=".onHeaderFieldLiveChange"
+                                    data-field="from"
+                                    placeholder="Nhập From"/>
+
+                                <Label text="To"/>
+                                <Input
+                                    value="{preview>/fields/to}"
+                                    liveChange=".onHeaderFieldLiveChange"
+                                    data-field="to"
+                                    placeholder="Nhập To"/>
+
+                                <Label text="CC"/>
+                                <Input
+                                    value="{preview>/fields/cc}"
+                                    liveChange=".onHeaderFieldLiveChange"
+                                    data-field="cc"
+                                    placeholder="Nhập CC"/>
+
+                                <Label text="BCC"/>
+                                <Input
+                                    value="{preview>/fields/bcc}"
+                                    liveChange=".onHeaderFieldLiveChange"
+                                    data-field="bcc"
+                                    placeholder="Nhập BCC"/>
+
+                                <Title text="Template Variables" level="H5"/>
+
+                                <VBox items="{preview>/variables}">
+                                    <items>
+                                        <VBox class="sapUiTinyMarginBottom">
+                                            <Label text="{preview>name}"/>
+                                            <Input
+                                                value="{preview>value}"
+                                                liveChange=".onVariableLiveChange"
+                                                placeholder="{= '&amp;' + ${preview>name} + '&amp;' }"/>
+                                        </VBox>
+                                    </items>
+                                </VBox>
+
+                                <HBox class="sapUiMediumMarginTop" renderType="Bare">
+                                    <Button
+                                        text="Apply Mock Data"
+                                        type="Emphasized"
+                                        press=".onApplyEngine"
+                                        class="sapUiTinyMarginEnd"/>
+                                    <Button
+                                        text="Clear"
+                                        press=".onClearEngine"/>
+                                </HBox>
+                            </forms:content>
+                        </forms:SimpleForm>
+                    </VBox>
+                </layout:sideContent>
+
+            </layout:DynamicSideContent>
         </content>
+
+        <footer>
+            <OverflowToolbar>
+                <Button
+                    icon="sap-icon://delete"
+                    text="Xóa"
+                    type="Transparent"
+                    press=".onDeleteTemplate"/>
+
+                <ToolbarSpacer/>
+
+                <Button
+                    icon="sap-icon://paper-plane"
+                    text="Gửi thử"
+                    type="Transparent"
+                    press=".onSendTestEmail"/>
+
+                <Button
+                    icon="sap-icon://edit"
+                    text="Chỉnh sửa"
+                    type="Emphasized"
+                    press=".onEditTemplate"/>
+            </OverflowToolbar>
+        </footer>
     </Page>
 </mvc:View>

@@ -1,0 +1,139 @@
+<mvc:View
+    controllerName="zemail.template.app.controller.template.EmailTemplateCreate"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns="sap.m"
+    xmlns:core="sap.ui.core"
+    xmlns:f="sap.f"
+    xmlns:form="sap.ui.layout.form"
+    xmlns:l="sap.ui.layout"
+    xmlns:code="sap.ui.codeeditor"
+    xmlns:rte="sap.ui.richtexteditor">
+
+    <f:DynamicPage showFooter="true">
+        <f:title>
+            <f:DynamicPageTitle>
+                <f:heading>
+                    <Title text="Create Email Template"/>
+                </f:heading>
+            </f:DynamicPageTitle>
+        </f:title>
+
+        <f:content>
+            <Wizard id="createWizard" finishButtonText="Save">
+
+                <WizardStep id="stepBasic" title="Basic Information" validated="true">
+                    <form:SimpleForm editable="true" layout="ResponsiveGridLayout">
+                        <Label text="Template Name"/>
+                        <Input value="{create>/name}" required="true"/>
+
+                        <Label text="Category"/>
+                        <Select selectedKey="{create>/category}">
+                            <core:Item key="Sales" text="Sales"/>
+                            <core:Item key="Marketing" text="Marketing"/>
+                            <core:Item key="System" text="System"/>
+                        </Select>
+
+                        <Label text="Subject"/>
+                        <Input
+                            value="{create>/subject}"
+                            placeholder="Order Confirmation for &amp;CUSTOMER_NAME&amp;"/>
+
+                        <Label text="Description"/>
+                        <TextArea value="{create>/description}" rows="4"/>
+                    </form:SimpleForm>
+                </WizardStep>
+
+                <WizardStep id="stepEditor" title="Template Editor" validated="true">
+                    <l:Grid defaultSpan="XL8 L8 M12 S12">
+                        <VBox width="100%">
+                            <SegmentedButton selectedKey="{create>/editorMode}">
+                                <items>
+                                    <SegmentedButtonItem key="RTE" text="Rich Text"/>
+                                    <SegmentedButtonItem key="HTML" text="HTML Code"/>
+                                </items>
+                            </SegmentedButton>
+
+                            <rte:RichTextEditor
+                                visible="{= ${create>/editorMode} === 'RTE' }"
+                                value="{create>/contentHtml}"
+                                width="100%"
+                                height="500px"/>
+
+                            <code:CodeEditor
+                                visible="{= ${create>/editorMode} === 'HTML' }"
+                                value="{create>/contentHtml}"
+                                type="html"
+                                height="500px"
+                                width="100%"/>
+                        </VBox>
+
+                        <IconTabBar expandable="false">
+                            <items>
+                                <IconTabFilter text="Variables">
+                                    <List items="{create>/availableVariables}">
+                                        <StandardListItem
+                                            title="{create>label}"
+                                            description="{create>token}"
+                                            type="Active"
+                                            press=".onInsertVariable"/>
+                                    </List>
+                                </IconTabFilter>
+
+                                <IconTabFilter text="Help">
+                                    <VBox class="sapUiSmallMargin">
+                                        <Text text="Use inline CSS for best email client compatibility."/>
+                                        <Text text="Example: &lt;div style='color:red'&gt;Hello&lt;/div&gt;"/>
+                                        <Text text="Supported placeholders: &amp;CUSTOMER_NAME&amp;, &amp;ORDER_ID&amp; ..."/>
+                                    </VBox>
+                                </IconTabFilter>
+                            </items>
+                        </IconTabBar>
+                    </l:Grid>
+                </WizardStep>
+
+                <WizardStep id="stepVariables" title="Variable Mapping" validated="true">
+                    <VBox class="sapUiMediumMarginBottom">
+                        <Button text="Scan Variables" press=".onScanVariables"/>
+                    </VBox>
+
+                    <Table items="{create>/usedVariables}">
+                        <columns>
+                            <Column><Text text="Variable"/></Column>
+                            <Column><Text text="Description"/></Column>
+                        </columns>
+                        <items>
+                            <ColumnListItem>
+                                <cells>
+                                    <Text text="{create>name}"/>
+                                    <Text text="{create>description}"/>
+                                </cells>
+                            </ColumnListItem>
+                        </items>
+                    </Table>
+                </WizardStep>
+
+                <WizardStep id="stepPreview" title="Preview/Test" validated="true">
+                    <VBox class="sapUiSmallMarginBottom">
+                        <Label text="Test Email"/>
+                        <Input value="{create>/testEmail}" placeholder="example@company.com"/>
+                        <Button text="Send Test Mail" press=".onSendTestMail" class="sapUiSmallMarginTop"/>
+                    </VBox>
+
+                    <Panel headerText="Preview">
+                        <FormattedText htmlText="{create>/previewHtml}"/>
+                    </Panel>
+                </WizardStep>
+
+            </Wizard>
+        </f:content>
+
+        <f:footer>
+            <OverflowToolbar>
+                <ToolbarSpacer/>
+                <Button text="Preview" press=".onPreview"/>
+                <Button text="Save Draft" type="Transparent" press=".onSaveDraft"/>
+                <Button text="Save &amp; Activate" type="Emphasized" press=".onSaveActivate"/>
+            </OverflowToolbar>
+        </f:footer>
+    </f:DynamicPage>
+</mvc:View>

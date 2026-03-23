@@ -2,16 +2,12 @@ sap.ui.define([], function () {
     "use strict";
 
     return {
-        statusState: function (bActive) {
-            if (bActive === true) {
-                return "Success";
-            } else {
-                return "Error";
-            }
+        statusText: function (bIsActive) {
+            return bIsActive ? "Active" : "Inactive";
         },
 
-        statusText: function (bActive) {
-            return bActive ? "Active" : "Inactive";
+        statusState: function (bIsActive) {
+            return bIsActive ? "Success" : "Error";
         }
     };
 });

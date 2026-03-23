@@ -4,14 +4,82 @@ sap.ui.define([
     "sap/m/MessageBox",
     "sap/ui/model/Filter",
     "sap/ui/model/FilterOperator",
+    "sap/ui/model/json/JSONModel",
     "zemail/template/app/model/formatter"
-], function (Controller, MessageToast, MessageBox, Filter, FilterOperator, formatter) {
+], function (Controller, MessageToast, MessageBox, Filter, FilterOperator, JSONModel, formatter) {
     "use strict";
 
     return Controller.extend("zemail.template.app.controller.template.EmailTemplateList", {
         formatter: formatter,
 
         onInit: function () {
+            const oEmailModel = new JSONModel({
+                EmailTemplates: [],
+                AllEmailTemplates: []
+            });
+            this.getView().setModel(oEmailModel, "email");
+
+            this._loadTemplates();
+        },
+
+        _loadTemplates: function () {
+            const oODataModel = this.getOwnerComponent().getModel();
+            const oEmailModel = this.getView().getModel("email");
+            const that = this;
+
+            oODataModel.read("/Header", {
+                urlParameters: {
+                    "$expand": "to_Body,to_Variables",
+                    "$format": "json"
+                },
+                success: function (oData) {
+                    const aResults = oData.results || [];
+                    const aMapped = aResults.map(function (oItem) {
+                        const aBodies = (oItem.to_Body && oItem.to_Body.results) ? oItem.to_Body.results : [];
+                        const oFirstBody = aBodies.length > 0 ? aBodies[0] : null;
+
+                        return {
+                            DbKey: oItem.DbKey,
+                            TemplateId: oItem.TemplateId,
+                            TemplateName: oItem.TemplateName,
+                            Department: oItem.Department,
+                            Category: oItem.Category,
+                            IsActive: oItem.IsActive,
+                            SenderEmail: oItem.SenderEmail,
+                            CreatedBy: oItem.CreatedBy,
+                            CreatedOn: oItem.CreatedOn,
+                            Subject: that._extractSubject(oFirstBody ? oFirstBody.Content : ""),
+                            BodyContent: oFirstBody ? oFirstBody.Content : "",
+                            Language: oFirstBody ? oFirstBody.Language : "",
+                            Version: oFirstBody ? oFirstBody.Version : "",
+                            Variables: (oItem.to_Variables && oItem.to_Variables.results) ? oItem.to_Variables.results : []
+                        };
+                    });
+
+                    oEmailModel.setProperty("/EmailTemplates", aMapped);
+                    oEmailModel.setProperty("/AllEmailTemplates", aMapped);
+                },
+                error: function () {
+                    MessageBox.error("Không tải được dữ liệu template từ backend.");
+                }
+            });
+        },
+
+        _extractSubject: function (sContent) {
+            if (!sContent) {
+                return "";
+            }
+
+            const aLines = sContent.split("\n");
+            const sSubjectLine = aLines.find(function (sLine) {
+                return sLine && sLine.trim().startsWith("Subject:");
+            });
+
+            if (sSubjectLine) {
+                return sSubjectLine.replace("Subject:", "").trim();
+            }
+
+            return sContent.length > 80 ? sContent.substring(0, 80) + "..." : sContent;
         },
 
         onItemPress: function (oEvent) {
@@ -19,23 +87,28 @@ sap.ui.define([
             this._navToDetail(oItem.getBindingContext("email"));
         },
 
-        onEditTemplate: function () {
-            MessageToast.show("Edit template - demo later");
+        onEditTemplate: function (oEvent) {
+            const oContext = oEvent.getSource().getBindingContext("email");
+            const oData = oContext.getObject();
+            MessageToast.show("Edit template: " + oData.TemplateId);
         },
 
         onCreateEmail: function () {
-            MessageToast.show("Create new template - demo later");
+            const oRouter = this.getOwnerComponent().getRouter();
+            oRouter.navTo("templatecreate");
         },
 
-        onCopyTemplate: function () {
-            MessageToast.show("Copy template - demo later");
+        onCopyTemplate: function (oEvent) {
+            const oContext = oEvent.getSource().getBindingContext("email");
+            const oData = oContext.getObject();
+            MessageToast.show("Copy template: " + oData.TemplateId);
         },
 
         onDeleteTemplate: function (oEvent) {
             const oContext = oEvent.getSource().getBindingContext("email");
             const oModel = this.getView().getModel("email");
             const sPath = oContext.getPath();
-            const aTemplates = oModel.getProperty("/EmailTemplates");
+            const aTemplates = oModel.getProperty("/EmailTemplates").slice();
 
             MessageBox.confirm("Delete this template?", {
                 onClose: function (sAction) {
@@ -49,32 +122,60 @@ sap.ui.define([
             });
         },
 
-        onSearch: function (oEvent) {
-            const sValue = oEvent.getParameter("newValue");
-            const oTable = this.byId("emailTemplateTable");
-            const oBinding = oTable.getBinding("items");
-            const aFilters = [];
+        onToggleActive: function (oEvent) {
+            const bState = oEvent.getParameter("state");
+            const oContext = oEvent.getSource().getBindingContext("email");
+            const oData = oContext.getObject();
 
-            if (sValue) {
-                aFilters.push(new Filter({
-                    filters: [
-                        new Filter("Name", FilterOperator.Contains, sValue),
-                        new Filter("Subject", FilterOperator.Contains, sValue),
-                        new Filter("Status", FilterOperator.Contains, sValue)
-                    ],
-                    and: false
-                }));
+            oData.IsActive = bState;
+            oContext.getModel().refresh(true);
+
+            MessageToast.show("Template " + oData.TemplateId + " is now " + (bState ? "Active" : "Inactive"));
+        },
+
+        onSearch: function (oEvent) {
+            const sValue = (oEvent.getParameter("newValue") || "").toLowerCase();
+            const oModel = this.getView().getModel("email");
+            const aAll = oModel.getProperty("/AllEmailTemplates") || [];
+
+            if (!sValue) {
+                oModel.setProperty("/EmailTemplates", aAll);
+                return;
             }
 
-            oBinding.filter(aFilters);
+            const aFiltered = aAll.filter(function (oItem) {
+                return (oItem.TemplateName || "").toLowerCase().includes(sValue) ||
+                    (oItem.TemplateId || "").toLowerCase().includes(sValue) ||
+                    (oItem.Subject || "").toLowerCase().includes(sValue) ||
+                    (oItem.Category || "").toLowerCase().includes(sValue);
+            });
+
+            oModel.setProperty("/EmailTemplates", aFiltered);
+        },
+
+        onCategoryChange: function (oEvent) {
+            const sKey = oEvent.getParameter("selectedItem").getKey();
+            const oModel = this.getView().getModel("email");
+            const aAll = oModel.getProperty("/AllEmailTemplates") || [];
+
+            if (sKey === "ALL") {
+                oModel.setProperty("/EmailTemplates", aAll);
+                return;
+            }
+
+            const aFiltered = aAll.filter(function (oItem) {
+                return oItem.Category === sKey;
+            });
+
+            oModel.setProperty("/EmailTemplates", aFiltered);
         },
 
         _navToDetail: function (oContext) {
             const oRouter = this.getOwnerComponent().getRouter();
+            const oData = oContext.getObject();
+
             oRouter.navTo("detail", {
-                emailPath: window.encodeURIComponent(
-                    oContext.getPath().substring(1)
-                )
+                emailPath: window.encodeURIComponent(oData.DbKey)
             });
         }
     });

@@ -10,14 +10,14 @@
 	  "version": "1.0.0"
 	},
 	"dataSources": {
-      "emailService": {
-        "uri": "/emailService/",
-        "type": "OData",
-        "settings": {
-          "odataVersion": "2.0"
-        }
-      }
-    }
+		"emailService": {
+			"uri": "/sap/opu/odata/sap/ZUI_SB_TMPL_ROOT/",
+			"type": "OData",
+			"settings": {
+				"odataVersion": "2.0"
+			}
+		}
+	}
   },
     "sap.ui": {
 	"technology": "UI5",
@@ -45,6 +45,15 @@
 		  	"bundleName": "zemail.template.app.i18n.i18n",
 		   	"supportedLocales": ["", "en", "vi"],
   			"fallbackLocale": "en"
+		}
+	  },
+	  "":	{
+		"dataSource": "emailService",
+		"type": "sap.ui.model.odata.v2.ODataModel",
+		"settings": {
+			"defaultBindingMode": "TwoWay",
+			"defaultCountMode": "Inline",
+			"useBatch": false
 		}
 	  },
 	  "email": {
@@ -79,6 +88,11 @@
 			"target": "detail"
 		},
 		{
+			"pattern": "template/create",
+			"name": "templatecreate",
+			"target": "templatecreate"
+		},
+		{
 			"pattern": "dashboard",
 			"name": "dashboard",
 			"target": "dashboard"
@@ -88,11 +102,16 @@
 			"name": "emaillogs",
 			"target": "emaillogs"
 		}
+		
 		],
 		"targets": {
 			"templatelist": {
 				"id": "templatelist",
 				"name": "template.EmailTemplateList"
+			},
+			"templatecreate":{
+				"id": "templatecreate",
+				"name": "template.EmailTemplateCreate"
 			},
 			"detail": {
 				"id": "detail",

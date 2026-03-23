@@ -12,13 +12,12 @@ sap.ui.define([
         init() {
             UIComponent.prototype.init.apply(this, arguments);
 
-         const oModel = new JSONModel();
-         oModel.loadData("test/mockData.json")
-
-         this.setModel(oModel);
+            const oLocalModel = new JSONModel();
+            oLocalModel.loadData("test/mockData.json");
+            this.setModel(oLocalModel, "local");
          
-         //create the views based on the url/hash
-         this.getRouter().initialize();
+             //create the views based on the url/hash
+             this.getRouter().initialize();
         }
     });
 });

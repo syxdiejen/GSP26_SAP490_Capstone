@@ -6,6 +6,7 @@
     "start": "ui5 serve -o test/mockServer.html"
   },
   "devDependencies": {
-    "@ui5/cli": "^4.0.45"
+    "@sap/ux-ui5-tooling": "^1.21.0",
+    "@ui5/cli": "^4.0.49"
   }
 }

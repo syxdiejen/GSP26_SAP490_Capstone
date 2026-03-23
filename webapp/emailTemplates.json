@@ -1,33 +1,36 @@
 {
   "EmailTemplates": [
     {
-      "ID": "1",
+      "TEMPLATE_ID": "1",
       "Name": "Welcome Email",
+      "Category": "Marketing",
       "Subject": "Welcome &CUSTOMER_NAME&",
-      "Status": "ACTIVE",
-      "Active": true,
       "Description": "Email sent when user registers",
-      "Body": "<div style='font-family:Arial'><h2>Welcome &CUSTOMER_NAME&</h2><p>We are happy to have you on our platform.</p><p>Enjoy your journey!</p></div>",
+      "ContentHtml": "<div style='font-family:Arial'><h2>Welcome &CUSTOMER_NAME&</h2><p>We are happy to have you on our platform.</p><p>Enjoy your journey!</p></div>",
+      "Variables": ["CUSTOMER_NAME"],
+      "Active": true,
       "CreatedBy": "Richard"
     },
     {
-      "ID": "2",
+      "TEMPLATE_ID": "2",
       "Name": "Reset Password",
+      "Category": "System",
       "Subject": "Reset your password",
-      "Status": "ACTIVE",
-      "Active": true,
       "Description": "Email sent when user requests password reset",
-      "Body": "<div style='font-family:Arial'><h2>Password Reset</h2><p>Please click the link below to reset your password.</p><a href='#'>Reset Password</a></div>",
+      "ContentHtml": "<div style='font-family:Arial'><h2>Password Reset</h2><p>Please click the link below to reset your password.</p><a href='#'>Reset Password</a></div>",
+      "Variables": [],
+      "Active": true,
       "CreatedBy": "Admin"
     },
     {
-      "ID": "3",
+      "TEMPLATE_ID": "3",
       "Name": "Order Confirmation",
+      "Category": "Sales",
       "Subject": "Order &ORDER_ID& confirmed",
-      "Status": "INACTIVE",
-      "Active": false,
       "Description": "Email sent after order placed",
-      "Body": "<div style='font-family:Arial'><h2>Order Confirmation</h2><p>Your order <b>&ORDER_ID&</b> has been confirmed.</p><p>Thank you for shopping with us.</p></div>",
+      "ContentHtml": "<div style='font-family:Arial'><h2>Order Confirmation</h2><p>Your order <b>&ORDER_ID&</b> has been confirmed.</p><p>Thank you for shopping with us.</p></div>",
+      "Variables": ["ORDER_ID"],
+      "Active": false,
       "CreatedBy": "System"
     }
   ]

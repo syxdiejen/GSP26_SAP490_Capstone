@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "The UI5 frontend application",
   "scripts": {
-    "start": "ui5 serve -o test/mockServer.html"
+    "start": "ui5 serve -o index.html"
   },
   "devDependencies": {
     "@sap/ux-ui5-tooling": "^1.21.0",

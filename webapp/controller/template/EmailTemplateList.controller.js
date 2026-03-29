@@ -45,6 +45,7 @@ sap.ui.define(
             urlParameters: {
               $expand: "to_Body,to_Variables",
               $format: "json",
+              $orderby: "CreatedOn desc",
             },
             success: function (oData) {
               const aResults = oData.results || [];
@@ -62,12 +63,9 @@ sap.ui.define(
                   Department: oItem.Department,
                   Category: oItem.Category,
                   IsActive: oItem.IsActive,
-                  SenderEmail: oItem.SenderEmail,
+                  Subject: oItem.Subject,
                   CreatedBy: oItem.CreatedBy,
                   CreatedOn: oItem.CreatedOn,
-                  Subject: that._extractSubject(
-                    oFirstBody ? oFirstBody.Content : "",
-                  ),
                   BodyContent: oFirstBody ? oFirstBody.Content : "",
                   Language: oFirstBody ? oFirstBody.Language : "",
                   Version: oFirstBody ? oFirstBody.Version : "",
@@ -113,10 +111,20 @@ sap.ui.define(
             return;
           }
 
-          var oInput = new sap.m.Input({
-            placeholder: "Nhập email người nhận (VD: abc@gmail.com)...",
+          // Ô nhập Email người nhận (To)
+          var oInputTo = new sap.m.Input({
+            placeholder: "Nhập email người nhận (VD: khachhang@gmail.com)...",
             type: sap.m.InputType.Email,
             width: "100%",
+          });
+
+          // Ô nhập Email người gửi (Reply-To / Sender Email)
+          var oInputSender = new sap.m.Input({
+            placeholder: "Nhập email người gửi (VD: cskh@congty.com)...",
+            type: sap.m.InputType.Email,
+            width: "100%",
+            // Bạn có thể để trống hoặc lấy sẵn giá trị mặc định nếu muốn
+            // value: oContext.getProperty("SenderEmail") || ""
           });
 
           var oSelectedFile = null;
@@ -138,7 +146,14 @@ sap.ui.define(
               new sap.m.VBox({
                 items: [
                   new sap.m.Label({ text: "Gửi đến (To):", required: true }),
-                  oInput,
+                  oInputTo,
+
+                  // THÊM LABEL VÀ INPUT SENDER EMAIL VÀO POPUP
+                  new sap.m.Label({
+                    text: "Email người gửi (Reply-To):",
+                  }).addStyleClass("sapUiSmallMarginTop"),
+                  oInputSender,
+
                   new sap.m.Label({
                     text: "Đính kèm (Attachment):",
                   }).addStyleClass("sapUiSmallMarginTop"),
@@ -150,9 +165,13 @@ sap.ui.define(
               type: sap.m.ButtonType.Emphasized,
               text: "Send Email",
               press: function () {
-                var sTargetEmail = oInput.getValue().trim();
+                var sTargetEmail = oInputTo.getValue().trim();
+                var sSenderEmail = oInputSender.getValue().trim(); // Lấy giá trị Sender Email
+
                 if (!sTargetEmail) {
-                  sap.m.MessageToast.show("Vui lòng nhập địa chỉ email!");
+                  sap.m.MessageToast.show(
+                    "Vui lòng nhập địa chỉ email người nhận!",
+                  );
                   return;
                 }
 
@@ -168,6 +187,7 @@ sap.ui.define(
                     this._executeSendEmail(
                       oContext,
                       sTargetEmail,
+                      sSenderEmail, // Truyền thêm Sender Email xuống hàm dưới
                       oSelectedFile,
                       sBase64Data,
                     );
@@ -180,8 +200,14 @@ sap.ui.define(
 
                   reader.readAsDataURL(oSelectedFile);
                 } else {
-                  // Nếu người dùng không đính kèm file
-                  this._executeSendEmail(oContext, sTargetEmail, null, null);
+                  // Truyền thêm Sender Email xuống hàm dưới
+                  this._executeSendEmail(
+                    oContext,
+                    sTargetEmail,
+                    sSenderEmail,
+                    null,
+                    null,
+                  );
                 }
               }.bind(this),
             }),
@@ -200,21 +226,26 @@ sap.ui.define(
           oDialog.open();
         },
 
-        // 2. HÀM THỰC THI GỌI API GOOGLE SCRIPT
+        // 2. HÀM THỰC THI GỌI API GOOGLE SCRIPT & GHI LOG
         _executeSendEmail: function (
           oContext,
           sTargetEmail,
+          sSenderEmail, // Nhận biến Sender Email từ hàm trên
           oSelectedFile,
           sAttachmentBase64,
         ) {
           var sTemplateName = oContext.getProperty("TemplateName");
-          var sBodyContent =
-            oContext.getProperty("Content") || "Nội dung test từ SAPUI5";
+          var sBodyContent = oContext.getProperty("BodyContent") || "";
+          var sSubject =
+            oContext.getProperty("Subject") || "Gửi từ UI5 - " + sTemplateName;
 
+          // Cập nhật Payload gửi sang Google Script
           var payload = {
             recipient: sTargetEmail,
-            subject: "Gửi từ UI5 - " + sTemplateName,
+            subject: sSubject,
             message: sBodyContent,
+            replyTo: sSenderEmail, // Bắn cái Email Sender sang Google để làm Reply-To
+            senderName: "Hệ thống SAP", // Tên hiển thị (Ngụy trang)
           };
 
           if (sAttachmentBase64 && oSelectedFile) {
@@ -225,7 +256,6 @@ sap.ui.define(
 
           sap.ui.core.BusyIndicator.show(0);
 
-          // TẠI ĐÂY: DÁN LẠI LINK GOOGLE SCRIPT CỦA BẠN NHÉ
           var GOOGLE_SCRIPT_URL =
             "https://script.google.com/macros/s/AKfycbyzEicAiHKKbsTe2_--9Rnb5GpGGLyVnmpWH43Jd5BdmZr6gJA9C4lfpovjEhnQ4TpA/exec";
 
@@ -242,10 +272,9 @@ sap.ui.define(
               if (resultText === "SUCCESS") {
                 MessageToast.show("🎉 Đã gửi mail! Đang ghi Log...");
 
-                // CHUẨN BỊ GHI LOG XUỐNG ODATA
                 var oModel = this.getOwnerComponent().getModel();
 
-                // BƯỚC 1: KHỞI TẠO JSON (TUYỆT ĐỐI KHÔNG CÓ TRƯỜNG Attachment)
+                // GHI LOG CÓ CHỨA SENDER EMAIL MỚI
                 var oLogData = {
                   TemplateId: oContext.getProperty("TemplateId") || "",
                   Status: "O",
@@ -253,15 +282,13 @@ sap.ui.define(
                   ObjType: oContext.getProperty("ObjType") || "",
                   MimeType: oSelectedFile ? oSelectedFile.type : "",
                   FileName: oSelectedFile ? oSelectedFile.name : "",
+                  SenderEmail: sSenderEmail, // Bắn giá trị nhập trên giao diện xuống OData
                 };
 
-                // Tắt tính năng gom nhóm (Batch) của UI5 để tránh xung đột
                 oModel.setUseBatch(false);
 
-                // GỌI LỆNH POST (Chỉ đẩy Text lên)
                 oModel.create("/EmailLog", oLogData, {
                   success: function (oCreatedRecord) {
-                    // Nếu user KHÔNG chọn file đính kèm -> Xong việc!
                     if (!oSelectedFile) {
                       console.log("Ghi log (không file) thành công!");
                       sap.m.MessageToast.show("Ghi Log thành công!");
@@ -269,41 +296,32 @@ sap.ui.define(
                       return;
                     }
 
-                    // BƯỚC 2: NẾU CÓ FILE -> BẮN LỆNH PUT ĐỂ UPLOAD VÀO DÒNG LOG VỪA TẠO
-                    // Lấy RunId (Khóa chính) vừa được Backend tự động sinh ra
                     var sRunId = oCreatedRecord.RunId;
-
-                    // Tạo URL trỏ thẳng vào trường Attachment: /EmailLog(RunId=guid'...')/Attachment
                     var sEntityPath = oModel.createKey("/EmailLog", {
                       RunId: sRunId,
                     });
                     var sUploadUrl =
                       oModel.sServiceUrl + sEntityPath + "/$value";
-
-                    // Lấy CSRF Token bảo mật
                     var sToken = oModel.getSecurityToken();
 
-                    // Bắn file vật lý lên SAP
                     $.ajax({
                       url: sUploadUrl,
                       type: "PUT",
-                      data: oSelectedFile, // Truyền nguyên cục file gốc, không dùng Base64
+                      data: oSelectedFile,
                       processData: false,
                       contentType: oSelectedFile.type,
                       headers: {
                         "x-csrf-token": sToken,
                         slug: oSelectedFile.name,
-                        "If-Match": "*", // Bỏ qua kiểm tra ETag để luôn cho phép ghi đè
+                        "If-Match": "*",
                       },
                       success: function () {
-                        console.log("Upload file vật lý thành công!");
                         sap.m.MessageToast.show(
                           "Ghi Log & Upload file đính kèm thành công!",
                         );
-                        oModel.refresh(true); // Cập nhật lại giao diện
+                        oModel.refresh(true);
                       },
                       error: function (err) {
-                        console.error("Lỗi upload file:", err);
                         sap.m.MessageToast.show(
                           "⚠️ Ghi log OK nhưng Upload file thất bại!",
                         );
@@ -311,13 +329,11 @@ sap.ui.define(
                     });
                   }.bind(this),
                   error: function (oError) {
-                    console.error("Lỗi ghi Log:", oError);
                     sap.m.MessageToast.show(
                       "⚠️ Mail đã gửi nhưng lỗi ghi Log!",
                     );
                   },
                   completed: function () {
-                    // Bật lại Batch mode sau khi chạy xong để không ảnh hưởng app
                     oModel.setUseBatch(true);
                   },
                 });
@@ -325,7 +341,6 @@ sap.ui.define(
             })
             .catch(function (error) {
               sap.m.MessageToast.show("❌ Lỗi gọi API: " + error.message);
-              console.error("API Error:", error);
             })
             .finally(function () {
               sap.ui.core.BusyIndicator.hide();

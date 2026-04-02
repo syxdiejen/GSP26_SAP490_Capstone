@@ -1,89 +1,105 @@
 <mvc:View
     controllerName="zemail.template.app.controller.logs.EmailLogs"
-    xmlns="sap.m"
     xmlns:mvc="sap.ui.core.mvc"
+    xmlns="sap.m"
+    xmlns:f="sap.f"
+    xmlns:fb="sap.ui.comp.filterbar"
     xmlns:core="sap.ui.core"
-    xmlns:f="sap.f">
+    displayBlock="true">
 
     <f:DynamicPage>
         <f:title>
             <f:DynamicPageTitle>
                 <f:heading>
-                    <Title text="Email Logs"/>
+                    <Title text="Email Logs" />
                 </f:heading>
             </f:DynamicPageTitle>
         </f:title>
 
         <f:header>
             <f:DynamicPageHeader pinnable="true">
-                <HBox alignItems="Center"
-                      justifyContent="Start"
-                      wrap="Wrap">
+                <fb:FilterBar
+                    id="filterbar"
+                    persistencyKey="PKeyEmailLog"
+                    useToolbar="false"
+                    search=".onSearch">
 
-                    <SearchField
-                        width="280px"
-                        placeholder="Search recipient"
-                        liveChange=".onFilterChange"
-                        class="sapUiSmallMarginEnd"/>
+                    <fb:filterGroupItems>
+                        <fb:FilterGroupItem name="Date" label="Sent Date" groupName="Main" visibleInFilterBar="true">
+                            <fb:control>
+                                <DateRangeSelection
+                                    id="drsSentDate"
+                                    displayFormat="MMM dd, yyyy" />
+                            </fb:control>
+                        </fb:FilterGroupItem>
 
-                    <MultiComboBox
-                        width="220px"
-                        selectionFinish=".onFilterChange"
-                        class="sapUiSmallMarginEnd"
-                        placeholder="Select status">
-                        <core:Item key="SUCCESS" text="Success"/>
-                        <core:Item key="FAILED" text="Failed"/>
-                    </MultiComboBox>
+                        <fb:FilterGroupItem name="Status" label="Status" groupName="Main" visibleInFilterBar="true">
+                            <fb:control>
+                                <MultiComboBox id="mcbStatus" selectionFinish=".onSearch">
+                                    <core:Item key="S" text="Sent" />
+                                    <core:Item key="F" text="Failed" />
+                                    <core:Item key="P" text="Pending" />
+                                    <core:Item key="O" text="Processed" />
+                                </MultiComboBox>
+                            </fb:control>
+                        </fb:FilterGroupItem>
 
-                    <DateRangeSelection
-                        width="260px"
-                        displayFormat="yyyy-MM-dd"
-                        valueFormat="yyyy-MM-dd"
-                        change=".onFilterChange"
-                        class="sapUiSmallMarginEnd"/>
-
-                    <Button
-                        text="Clear"
-                        press=".onClearFilter"/>
-                </HBox>
+                        <fb:FilterGroupItem name="Recipient" label="Recipient" groupName="Main" visibleInFilterBar="true">
+                            <fb:control>
+                                <SearchField
+                                    id="sfRecipient"
+                                    placeholder="e.g. mail@example.com"
+                                    search=".onSearch" />
+                            </fb:control>
+                        </fb:FilterGroupItem>
+                    </fb:filterGroupItems>
+                </fb:FilterBar>
             </f:DynamicPageHeader>
         </f:header>
 
         <f:content>
             <Table
-                items="{/filteredLogs}"
-                sticky="ColumnHeaders">
+                id="tblEmailLogs"
+                items="{vm>/logs}"
+                growing="true"
+                growingScrollToLoad="true">
+
+                <headerToolbar>
+                    <OverflowToolbar>
+                        <Title text="Email Logs" level="H4" />
+                        <ToolbarSpacer />
+                        <Button text="Refresh" icon="sap-icon://refresh" press=".onRefresh" />
+                        <Button text="Clear Filters" press=".onClearFilter" />
+                    </OverflowToolbar>
+                </headerToolbar>
+
                 <columns>
-                    <Column>
-                        <Text text="Recipient"/>
-                    </Column>
-                    <Column>
-                        <Text text="Status"/>
-                    </Column>
-                    <Column>
-                        <Text text="Sent At"/>
-                    </Column>
-                    <Column hAlign="Center" width="8rem">
-                        <Text text="Action"/>
-                    </Column>
+                    <Column><Text text="Status" /></Column>
+                    <Column><Text text="Template" /></Column>
+                    <Column><Text text="Object Type" /></Column>
+                    <Column><Text text="Object Key" /></Column>
+                    <Column><Text text="Sent By" /></Column>
+                    <Column><Text text="Sent At" /></Column>
+                    <Column><Text text="File" /></Column>
+                    <Column hAlign="End"><Text text="Action" /></Column>
                 </columns>
 
                 <items>
-                    <ColumnListItem>
+                    <ColumnListItem type="Navigation" press=".onViewDetail">
                         <cells>
-                            <Text text="{Recipient}"/>
-
                             <ObjectStatus
-                                text="{Status}"
-                                state="{= ${Status} === 'SUCCESS' ? 'Success' : 'Error' }"/>
-
-                            <Text text="{SentAt}"/>
-
+                                text="{vm>StatusText}"
+                                state="{vm>StatusState}" />
+                            <Text text="{vm>TemplateId}" />
+                            <Text text="{vm>ObjType}" />
+                            <Text text="{vm>ObjKey}" />
+                            <Text text="{vm>SentBy}" />
+                            <Text text="{vm>SentAtText}" />
+                            <Text text="{vm>FileName}" />
                             <Button
-                                icon="sap-icon://display"
+                                text="View Detail"
                                 type="Transparent"
-                                tooltip="View Detail"
-                                press=".onViewDetail"/>
+                                press=".onViewDetail" />
                         </cells>
                     </ColumnListItem>
                 </items>

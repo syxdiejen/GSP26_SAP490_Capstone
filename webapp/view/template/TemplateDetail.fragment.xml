@@ -1,0 +1,55 @@
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core" xmlns:f="sap.ui.layout.form">
+    <Dialog
+        id="TemplateDetailDialog"
+        title="Email Template: {email>TemplateName}"
+        contentWidth="700px"
+        contentHeight="500px">
+        <content>
+            <f:SimpleForm editable="false" layout="ResponsiveGridLayout">
+                <f:content>
+                    <Label text="Template ID" />
+                    <Text text="{email>TemplateId}" />
+
+                    <Label text="Subject" />
+                    <Text text="{email>Subject}" />
+                </f:content>
+            </f:SimpleForm>
+
+            <IconTabBar expandable="false">
+                <items>
+                    <IconTabFilter icon="sap-icon://document-text" text="Content Body">
+                        <TextArea
+                            value="{email>BodyContent}"
+                            editable="false"
+                            width="100%"
+                            rows="12"
+                            class="sapUiSmallMarginBottom" />
+                    </IconTabFilter>
+
+                    <IconTabFilter icon="sap-icon://BusinessSuiteInAppSymbols/parameter-mapping" text="Variables">
+                        <Table items="{email>Variables}">
+                            <columns>
+                                <Column><Text text="Variable" /></Column>
+                                <Column><Text text="Mandatory" /></Column>
+                            </columns>
+                            <items>
+                                <ColumnListItem>
+                                    <cells>
+                                        <ObjectIdentifier title="{email>VarName}" text="{email>Description}" />
+                                        <CheckBox selected="{email>IsMandatory}" editable="false" />
+                                    </cells>
+                                </ColumnListItem>
+                            </items>
+                        </Table>
+                    </IconTabFilter>
+                </items>
+            </IconTabBar>
+        </content>
+        <beginButton>
+            <Button text="Preview" type="Emphasized" press=".onPreviewAction" />
+        </beginButton>
+        <endButton>
+            <Button text="Close" press=".onCloseDialog" />
+        </endButton>
+    </Dialog>
+</core:FragmentDefinition>

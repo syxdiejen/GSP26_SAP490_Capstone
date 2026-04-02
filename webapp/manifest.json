@@ -55,10 +55,6 @@
 			"defaultCountMode": "Inline",
 			"useBatch": false
 		}
-	  },
-	  "email": {
-  	  	"type": "sap.ui.model.json.JSONModel",
-  	  	"uri"	: "emailTemplates.json"
 	  }
 	},
 	"rootView": {

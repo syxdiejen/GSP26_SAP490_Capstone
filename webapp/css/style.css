@@ -1,13 +1,18 @@
-/* ===== PAGE WRAPPER ===== */
+/* ===== PAGE ===== */
 .detailPageWrapper {
     max-width: 96rem;
     margin: 0 auto;
 }
 
-/* ===== PREVIEW WRAPPER ===== */
+.previewToolbar {
+    width: 100%;
+}
+
+/* ===== PREVIEW SHELL ===== */
 .emailPreviewShell {
     display: flex;
     justify-content: center;
+    width: 100%;
     transition: all 0.25s ease;
 }
 
@@ -16,13 +21,13 @@
     width: 100%;
     margin: 0 auto;
     background: var(--sapBackgroundColor);
-    border-radius: 1rem;
     border: 0.0625rem solid var(--sapList_BorderColor);
+    border-radius: 1rem;
     box-shadow: 0 0.25rem 1rem rgba(0, 0, 0, 0.08);
     overflow: hidden;
 }
 
-/* ===== DEVICE MODES ===== */
+/* ===== DEVICE WIDTHS ===== */
 .previewDesktop .emailCard {
     max-width: 60rem;
 }
@@ -35,66 +40,69 @@
     max-width: 23rem;
 }
 
-/* ===== EMAIL HEADER ===== */
+/* ===== HEADER ===== */
 .emailHeader {
     padding: 1rem 1.25rem;
     border-bottom: 0.0625rem solid var(--sapList_BorderColor);
     background: var(--sapList_Background);
 }
 
-.emailHeader .label {
-    width: 5rem;
+.emailMetaRow {
+    align-items: flex-start;
+    gap: 0.5rem;
+}
+
+.emailMetaLabel {
     min-width: 5rem;
+    width: 5rem;
     color: var(--sapContent_LabelColor);
     font-weight: 600;
+    flex-shrink: 0;
 }
 
-.emailHeader .value {
+.emailMetaValue {
     color: var(--sapTextColor);
+    flex: 1;
     word-break: break-word;
+    white-space: normal;
 }
 
-.emailHeader .valueBold {
+.emailMetaValueBold {
     font-weight: 700;
-    color: var(--sapTextColor);
-    word-break: break-word;
 }
 
-/* ===== EMAIL BODY ===== */
+/* ===== BODY ===== */
 .emailBody {
     padding: 1.5rem;
-    line-height: 1.6;
-    color: var(--sapTextColor);
     min-height: 24rem;
     max-height: 38rem;
     overflow-y: auto;
+    line-height: 1.6;
+    color: var(--sapTextColor);
     background: #ffffff;
+    box-sizing: border-box;
 }
 
-/* HTML content */
 .emailBody > div {
     width: 100%;
     box-sizing: border-box;
 }
 
-/* ===== SIDE CONTENT (FORM) ===== */
-.sapUiDSCSpan6 .sapMVBox {
-    width: 100%;
-}
-
 /* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
+    .emailHeader {
+        padding: 1rem;
+    }
 
-    .emailHeader .label {
-        width: 4rem;
+    .emailMetaLabel {
         min-width: 4rem;
+        width: 4rem;
     }
 
     .emailBody {
         padding: 1rem;
     }
 
-    /* Khi xuống mobile, preview full width */
     .previewDesktop .emailCard,
     .previewTablet .emailCard,
     .previewMobile .emailCard {

@@ -3,8 +3,8 @@
     xmlns:mvc="sap.ui.core.mvc"
     xmlns="sap.m"
     xmlns:core="sap.ui.core"
-    xmlns:f="sap.f"
->
+    xmlns:f="sap.f">
+
     <f:DynamicPage>
         <f:title>
             <f:DynamicPageTitle>
@@ -13,68 +13,42 @@
                 </f:heading>
 
                 <f:actions>
-                    <Button
-                        icon="sap-icon://overflow"
-                        type="Transparent"
-                    />
+                    <Button icon="sap-icon://overflow" type="Transparent" />
                     <Button
                         text="Create Email"
                         type="Emphasized"
-                        press=".onCreateEmail"
-                    />
+                        press=".onCreateEmail" />
                 </f:actions>
             </f:DynamicPageTitle>
         </f:title>
 
         <f:header>
             <f:DynamicPageHeader pinnable="true">
-                <HBox
-                    alignItems="Center"
-                    justifyContent="Start"
-                    wrap="Wrap"
-                >
+                <HBox alignItems="Center" justifyContent="Start" wrap="Wrap">
                     <SearchField
                         width="300px"
                         placeholder="Search"
                         liveChange=".onSearch"
-                        class="sapUiSmallMarginEnd"
-                    />
+                        class="sapUiSmallMarginEnd" />
 
-                    <Label
-                        text="Category"
-                        class="sapUiSmallMarginEnd"
-                    />
+                    <Label text="Category" class="sapUiSmallMarginEnd" />
 
                     <Select
                         width="150px"
                         class="sapUiSmallMarginEnd"
-                        change=".onCategoryChange"
-                    >
+                        change=".onCategoryChange">
                         <items>
-                            <core:Item
-                                key="ALL"
-                                text="Show All"
-                            />
-                            <core:Item
-                                key="ORDER"
-                                text="ORDER"
-                            />
-                            <core:Item
-                                key="TEST"
-                                text="TEST"
-                            />
-                            <core:Item
-                                key="N"
-                                text="N"
-                            />
+                            <core:Item key="ALL" text="Show All" />
+                            <core:Item key="ORDER" text="ORDER" />
+                            <core:Item key="TEST" text="TEST" />
+                            <core:Item key="N" text="N" />
                         </items>
                     </Select>
 
                     <Button
                         icon="sap-icon://filter"
                         type="Transparent"
-                        text="More Filters"
-                    />
+                        text="More Filters" />
                 </HBox>
             </f:DynamicPageHeader>
         </f:header>
@@ -85,8 +59,8 @@
                 sticky="HeaderToolbar,ColumnHeaders"
                 items="{email>/EmailTemplates}"
                 growing="true"
-                growingScrollToLoad="true"
-            >
+                growingScrollToLoad="true">
+
                 <columns>
                     <Column>
                         <Text text="Template Name" />
@@ -95,15 +69,12 @@
                         <Text text="Subject / Content Preview" />
                     </Column>
                     <Column>
-                        <Text text="Category" />
+                        <Text text="Department" />
                     </Column>
                     <Column>
-                        <Text text="Status" />
+                        <Text text="Category" />
                     </Column>
-                    <Column
-                        width="5rem"
-                        hAlign="Center"
-                    >
+                    <Column width="5rem" hAlign="Center">
                         <Text text="Active" />
                     </Column>
                     <Column hAlign="End">
@@ -114,61 +85,28 @@
                 <items>
                     <ColumnListItem
                         type="Navigation"
-                        press=".onItemPress"
-                    >
+                        press=".onItemPress">
                         <cells>
                             <VBox>
                                 <Text text="{email>TemplateName}" />
-                                <Text
-                                    text="{email>TemplateId}"
-                                    class="sapUiTinyMarginTop"
-                                />
                             </VBox>
 
                             <Text text="{email>Subject}" />
 
-                            <Text text="{email>Category}" />
+                            <Text text="{email>Department}" />
 
-                            <ObjectStatus
-                                text="{
-                                    path: 'email>IsActive',
-                                    formatter: '.formatter.statusText'
-                                }"
-                                state="{
-                                    path: 'email>IsActive',
-                                    formatter: '.formatter.statusState'
-                                }"
-                            />
+                            <Text text="{email>Category}" />
 
                             <Switch
                                 state="{email>IsActive}"
                                 customTextOn="✓"
                                 customTextOff="—"
-                                change=".onToggleActive"
-                            />
+                                change=".onToggleActive" />
 
                             <HBox justifyContent="End">
-                                <Button
-                                    icon="sap-icon://email"
-                                    tooltip="Send Email"
-                                    type="Transparent"
-                                    press=".onSendEmailPress"
-                                />
-                                <Button
-                                    icon="sap-icon://edit"
-                                    type="Transparent"
-                                    press=".onEditTemplate"
-                                />
-                                <Button
-                                    icon="sap-icon://copy"
-                                    type="Transparent"
-                                    press=".onCopyTemplate"
-                                />
-                                <Button
-                                    icon="sap-icon://delete"
-                                    type="Transparent"
-                                    press=".onDeleteTemplate"
-                                />
+                                <Button icon="sap-icon://edit" type="Transparent" press=".onEditTemplate" />
+                                <Button icon="sap-icon://show" type="Transparent" press=".onPreviewTemplate" />
+                                <Button icon="sap-icon://delete" type="Transparent" press=".onDeleteTemplate" />
                             </HBox>
                         </cells>
                     </ColumnListItem>

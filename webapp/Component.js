@@ -17,6 +17,12 @@ sap.ui.define([
             this.setModel(oLocalModel, "local");
          
              //create the views based on the url/hash
+            const oEmailModel = new JSONModel({
+                EmailTemplates: [],
+                AllEmailTemplates: []
+            });
+            this.setModel(oEmailModel, "email");
+
              this.getRouter().initialize();
         }
     });

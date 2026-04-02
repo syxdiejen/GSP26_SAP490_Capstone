@@ -1,6 +1,8 @@
-sap.ui.define(
-  [
+sap.ui.define([
     "sap/ui/core/mvc/Controller",
+    "sap/ui/model/json/JSONModel",
+    "sap/ui/model/Filter",
+    "sap/ui/model/FilterOperator",
     "sap/m/Dialog",
     "sap/m/Button",
     "sap/m/VBox",
@@ -10,11 +12,14 @@ sap.ui.define(
     "sap/m/Label",
     "sap/m/MessageStrip",
     "sap/ui/core/HTML",
+    "sap/m/BusyDialog",
     "sap/m/MessageToast",
-    "sap/ui/core/BusyIndicator",
-  ],
-  function (
+    "sap/m/MessageBox"
+], function (
     Controller,
+    JSONModel,
+    Filter,
+    FilterOperator,
     Dialog,
     Button,
     VBox,
@@ -24,223 +29,302 @@ sap.ui.define(
     Label,
     MessageStrip,
     HTML,
-  ) {
+    BusyDialog,
+    MessageToast,
+    MessageBox
+) {
     "use strict";
 
     return Controller.extend("zemail.template.app.controller.logs.EmailLogs", {
-      onInit: function () {
-        const oModel = this.getOwnerComponent().getModel();
-        const aLogs = oModel.getProperty("/logs");
+        onInit: function () {
+            this._oBusy = new BusyDialog();
 
-        if (aLogs && aLogs.length) {
-          oModel.setProperty("/filteredLogs", aLogs);
-        } else {
-          oModel.attachRequestCompleted(() => {
-            oModel.setProperty("/filteredLogs", oModel.getProperty("/logs"));
-          });
-        }
-      },
+            const oVM = new JSONModel({
+                logs: [],
+                selectedLog: null,
+                details: []
+            });
 
-      onFilterByDate: function (oEvent) {
-        const sDate = oEvent.getSource().getValue();
-        const oModel = this.getOwnerComponent().getModel();
-        const aLogs = oModel.getProperty("/logs");
-        const aFiltered = aLogs.filter((log) => log.SentAt === sDate);
+            this.getView().setModel(oVM, "vm");
+            this._loadEmailLogs();
+        },
 
-        oModel.setProperty("/filteredLogs", aFiltered);
-        oModel.setProperty("/filterDate", sDate);
-      },
+        getODataModel: function () {
+            return this.getOwnerComponent().getModel();
+        },
 
-      onClearFilter: function () {
-        const oModel = this.getOwnerComponent().getModel();
-        const aLogs = oModel.getProperty("/logs");
+        getViewModel: function () {
+            return this.getView().getModel("vm");
+        },
 
-        oModel.setProperty("/filteredLogs", aLogs);
-        oModel.setProperty("/filterDate", "");
-      },
+        _loadEmailLogs: function (aFilters) {
+            const oODataModel = this.getODataModel();
+            const oVM = this.getViewModel();
 
-      onViewDetail: function (oEvent) {
-        const oContext = oEvent.getSource().getBindingContext();
-        const oLog = oContext.getObject();
+            this._oBusy.open();
 
-        const sRecipient = oLog.Recipient || "-";
-        const sStatus = oLog.Status || "-";
-        const sSentAt = oLog.SentAt || "-";
-        const sEmailContent =
-          oLog.EmailContent ||
-          oLog.Content ||
-          oLog.Body ||
-          "No email content available.";
-        const sErrorMessage = oLog.ErrorMessage || oLog.Message || "";
+            oODataModel.read("/EmailLog", {
+                filters: aFilters || [],
+                success: function (oData) {
+                    const aResults = (oData && oData.results) || [];
+                    const aMapped = aResults.map(this._mapHeaderLog.bind(this));
 
-        if (!this._oDetailDialog) {
-          this._oDetailDialog = new Dialog({
-            title: "Email Log Detail",
-            contentWidth: "720px",
-            contentHeight: "500px",
-            resizable: true,
-            draggable: true,
-            verticalScrolling: true,
-            content: [],
-            endButton: new Button({
-              text: "Close",
-              press: function () {
-                this._oDetailDialog.close();
-              }.bind(this),
-            }),
-          });
+                    oVM.setProperty("/logs", aMapped);
+                    this._oBusy.close();
+                }.bind(this),
+                error: function (oError) {
+                    this._oBusy.close();
+                    MessageBox.error("Không tải được Email Logs từ OData service.");
+                    // optional: console.error(oError);
+                }.bind(this)
+            });
+        },
 
-          this.getView().addDependent(this._oDetailDialog);
-        }
+        _mapHeaderLog: function (oItem) {
+            const sStatusCode = oItem.Status || "";
+            const oStatusInfo = this._mapStatus(sStatusCode);
 
-        const aContent = [
-          new VBox({
-            width: "100%",
-            items: [
-              new Title({ text: "General Information", level: "H4" }),
+            return {
+                RunId: oItem.RunId,
+                TemplateId: oItem.TemplateId || "",
+                ObjKey: oItem.ObjKey || "",
+                ObjType: oItem.ObjType || "",
+                SentBy: oItem.SentBy || "",
+                SentDate: oItem.SentDate || null,
+                SentTime: oItem.SentTime || "",
+                SentAtText: this._formatSentAt(oItem.SentDate, oItem.SentTime),
+                Status: sStatusCode,
+                StatusText: oStatusInfo.text,
+                StatusState: oStatusInfo.state,
+                MimeType: oItem.MimeType || "",
+                FileName: oItem.FileName || ""
+            };
+        },
 
-              new HBox({
+        _mapStatus: function (sStatus) {
+            switch (sStatus) {
+                case "S":
+                    return { text: "Sent", state: "Success" };
+                case "F":
+                    return { text: "Failed", state: "Error" };
+                case "P":
+                    return { text: "Pending", state: "Warning" };
+                case "O":
+                    return { text: "Processed", state: "Information" };
+                default:
+                    return { text: sStatus || "Unknown", state: "None" };
+            }
+        },
+
+        _formatSentAt: function (sDate, sDuration) {
+            if (!sDate) {
+                return "-";
+            }
+
+            const oDate = new Date(sDate);
+            if (isNaN(oDate.getTime())) {
+                return sDate;
+            }
+
+            const sTime = this._durationToTime(sDuration);
+            const sDateText = oDate.toLocaleDateString("en-GB");
+
+            return sTime ? (sDateText + " " + sTime) : sDateText;
+        },
+
+        _durationToTime: function (sDuration) {
+            if (!sDuration) {
+                return "";
+            }
+
+            const aMatch = /PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/.exec(sDuration);
+            if (!aMatch) {
+                return sDuration;
+            }
+
+            const sHours = String(parseInt(aMatch[1] || "0", 10)).padStart(2, "0");
+            const sMinutes = String(parseInt(aMatch[2] || "0", 10)).padStart(2, "0");
+            const sSeconds = String(parseInt(aMatch[3] || "0", 10)).padStart(2, "0");
+
+            return sHours + ":" + sMinutes + ":" + sSeconds;
+        },
+
+        onSearch: function () {
+            const aFilters = this._buildFilters();
+            this._loadEmailLogs(aFilters);
+        },
+
+        _buildFilters: function () {
+            const oView = this.getView();
+            const aFilters = [];
+
+            const oSearchField = oView.byId("sfRecipient");
+            const oStatusBox = oView.byId("mcbStatus");
+            const oDateRange = oView.byId("drsSentDate");
+
+            const sRecipient = (oSearchField.getValue() || "").trim();
+            const aStatuses = oStatusBox.getSelectedKeys();
+            const dFrom = oDateRange.getDateValue();
+            const dTo = oDateRange.getSecondDateValue() || dFrom;
+
+            if (sRecipient) {
+                aFilters.push(new Filter("Recipient", FilterOperator.Contains, sRecipient));
+            }
+
+            if (aStatuses.length === 1) {
+                aFilters.push(new Filter("Status", FilterOperator.EQ, aStatuses[0]));
+            } else if (aStatuses.length > 1) {
+                const aStatusFilters = aStatuses.map(function (sKey) {
+                    return new Filter("Status", FilterOperator.EQ, sKey);
+                });
+                aFilters.push(new Filter({
+                    filters: aStatusFilters,
+                    and: false
+                }));
+            }
+
+            if (dFrom) {
+                const dStart = new Date(dFrom);
+                dStart.setHours(0, 0, 0, 0);
+                aFilters.push(new Filter("SentDate", FilterOperator.GE, dStart));
+            }
+
+            if (dTo) {
+                const dEnd = new Date(dTo);
+                dEnd.setHours(23, 59, 59, 999);
+                aFilters.push(new Filter("SentDate", FilterOperator.LE, dEnd));
+            }
+
+            return aFilters;
+        },
+
+        onClearFilter: function () {
+            const oView = this.getView();
+
+            oView.byId("sfRecipient").setValue("");
+            oView.byId("mcbStatus").setSelectedKeys([]);
+            oView.byId("drsSentDate").setDateValue(null);
+            oView.byId("drsSentDate").setSecondDateValue(null);
+            oView.byId("drsSentDate").setValue("");
+
+            this._loadEmailLogs([]);
+        },
+
+        onRefresh: function () {
+            this._loadEmailLogs(this._buildFilters());
+            MessageToast.show("Email logs refreshed");
+        },
+
+        onViewDetail: function (oEvent) {
+            const oSource = oEvent.getSource();
+            const oContext = oSource.getBindingContext("vm");
+
+            if (!oContext) {
+                return;
+            }
+
+            const oLog = oContext.getObject();
+            this._loadLogDetails(oLog);
+        },
+
+        _loadLogDetails: function (oLog) {
+            const oODataModel = this.getODataModel();
+            const sPath = "/EmailLog(guid'" + oLog.RunId + "')/to_Details";
+
+            this._oBusy.open();
+
+            oODataModel.read(sPath, {
+                success: function (oData) {
+                    const aDetails = (oData && oData.results) || [];
+                    this._openDetailDialog(oLog, aDetails);
+                    this._oBusy.close();
+                }.bind(this),
+                error: function () {
+                    this._oBusy.close();
+                    MessageBox.error("Không tải được chi tiết log.");
+                }.bind(this)
+            });
+        },
+
+        _openDetailDialog: function (oLog, aDetails) {
+            const sFirstRecipient = aDetails[0]?.Recipient || "-";
+            const sFirstMessage = aDetails[0]?.MsgVar1 || "";
+            const sContent = aDetails[0]?.Content || "No detail content available.";
+
+            if (!this._oDetailDialog) {
+                this._oDetailDialog = new Dialog({
+                    title: "Email Log Detail",
+                    contentWidth: "720px",
+                    contentHeight: "520px",
+                    resizable: true,
+                    draggable: true,
+                    verticalScrolling: true,
+                    endButton: new Button({
+                        text: "Close",
+                        press: function () {
+                            this._oDetailDialog.close();
+                        }.bind(this)
+                    })
+                });
+
+                this.getView().addDependent(this._oDetailDialog);
+            }
+
+            const aContent = [
+                new VBox({
+                    width: "100%",
+                    items: [
+                        new Title({ text: "General Information", level: "H4" }),
+
+                        this._buildInfoRow("Run ID:", oLog.RunId),
+                        this._buildInfoRow("Template ID:", oLog.TemplateId || "-"),
+                        this._buildInfoRow("Status:", oLog.StatusText || "-"),
+                        this._buildInfoRow("Sent At:", oLog.SentAtText || "-"),
+                        this._buildInfoRow("Recipient:", sFirstRecipient),
+                        this._buildInfoRow("File:", oLog.FileName || "-"),
+
+                        new Title({ text: "Message", level: "H4" }).addStyleClass("sapUiMediumMarginTop"),
+                        new MessageStrip({
+                            text: sFirstMessage || "No message available.",
+                            type: oLog.StatusState === "Error" ? "Error" : "Information",
+                            showIcon: true
+                        }).addStyleClass("sapUiSmallMarginBottom"),
+
+                        new Title({ text: "Content", level: "H4" }),
+                        new HTML({
+                            content:
+                                "<div style='padding:0.75rem;border:1px solid var(--sapList_BorderColor);border-radius:0.75rem;max-height:220px;overflow:auto;white-space:pre-wrap;word-break:break-word;background:var(--sapGroup_ContentBackground);'>" +
+                                this._escapeHtml(sContent) +
+                                "</div>"
+                        })
+                    ]
+                })
+            ];
+
+            this._oDetailDialog.removeAllContent();
+            aContent.forEach(function (oItem) {
+                this._oDetailDialog.addContent(oItem);
+            }.bind(this));
+
+            this._oDetailDialog.open();
+        },
+
+        _buildInfoRow: function (sLabel, sValue) {
+            return new HBox({
                 items: [
-                  new Label({ text: "Recipient:", width: "120px" }),
-                  new Text({ text: sRecipient }),
-                ],
-              }).addStyleClass("sapUiSmallMarginBottom"),
+                    new Label({ text: sLabel, width: "120px" }),
+                    new Text({ text: sValue || "-" })
+                ]
+            }).addStyleClass("sapUiSmallMarginBottom");
+        },
 
-              new HBox({
-                items: [
-                  new Label({ text: "Status:", width: "120px" }),
-                  new Text({ text: sStatus }),
-                ],
-              }).addStyleClass("sapUiSmallMarginBottom"),
-
-              new HBox({
-                items: [
-                  new Label({ text: "Sent At:", width: "120px" }),
-                  new Text({ text: sSentAt }),
-                ],
-              }).addStyleClass(
-                "sapUiSmallMarginBottom sapUiMediumMarginBottom",
-              ),
-
-              new Title({ text: "Email Content", level: "H4" }),
-
-              new HTML({
-                content:
-                  "<div style='padding:0.75rem;border:1px solid #d9d9d9;border-radius:0.5rem;max-height:220px;overflow:auto;white-space:pre-wrap;word-break:break-word;'>" +
-                  this._escapeHtml(sEmailContent) +
-                  "</div>",
-              }).addStyleClass("sapUiSmallMarginBottom"),
-            ],
-          }),
-        ];
-
-        if (sStatus !== "SUCCESS" && sErrorMessage) {
-          aContent.push(
-            new VBox({
-              items: [
-                new Title({ text: "Error Detail", level: "H4" }),
-                new MessageStrip({
-                  text: sErrorMessage,
-                  type: "Error",
-                  showIcon: true,
-                }),
-              ],
-            }).addStyleClass("sapUiMediumMarginTop"),
-          );
+        _escapeHtml: function (sText) {
+            return String(sText || "")
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#39;");
         }
-
-        this._oDetailDialog.removeAllContent();
-        aContent.forEach(
-          function (oItem) {
-            this._oDetailDialog.addContent(oItem);
-          }.bind(this),
-        );
-
-        this._oDetailDialog.open();
-      },
-
-      _escapeHtml: function (sText) {
-        return String(sText)
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")
-          .replace(/"/g, "&quot;")
-          .replace(/'/g, "&#39;");
-      },
-
-      onFilterChange: function () {
-        const oView = this.getView();
-        const oModel = this.getOwnerComponent().getModel();
-        const aLogs = oModel.getProperty("/logs") || [];
-
-        const oSearchField = oView.findAggregatedObjects(true, (o) =>
-          o.isA("sap.m.SearchField"),
-        )[0];
-        const oStatusBox = oView.findAggregatedObjects(true, (o) =>
-          o.isA("sap.m.MultiComboBox"),
-        )[0];
-        const oDateRange = oView.findAggregatedObjects(true, (o) =>
-          o.isA("sap.m.DateRangeSelection"),
-        )[0];
-
-        const sKeyword = (oSearchField?.getValue() || "").trim().toLowerCase();
-        const aStatuses = oStatusBox?.getSelectedKeys() || [];
-        const dFrom = oDateRange?.getDateValue();
-        const dTo = oDateRange?.getSecondDateValue() || dFrom;
-
-        const aFiltered = aLogs.filter(function (oLog) {
-          const sRecipient = (oLog.Recipient || "").toLowerCase();
-          const sStatus = oLog.Status || "";
-          const dSentAt = oLog.SentAt ? new Date(oLog.SentAt) : null;
-
-          const bRecipient = !sKeyword || sRecipient.includes(sKeyword);
-          const bStatus = aStatuses.length === 0 || aStatuses.includes(sStatus);
-
-          let bDate = true;
-          if (dFrom && dSentAt) {
-            const dStart = new Date(dFrom);
-            dStart.setHours(0, 0, 0, 0);
-
-            const dEnd = new Date(dTo);
-            dEnd.setHours(23, 59, 59, 999);
-
-            bDate = dSentAt >= dStart && dSentAt <= dEnd;
-          }
-
-          return bRecipient && bStatus && bDate;
-        });
-
-        oModel.setProperty("/filteredLogs", aFiltered);
-      },
-
-      onClearFilter: function () {
-        const oView = this.getView();
-        const oModel = this.getOwnerComponent().getModel();
-
-        const oSearchField = oView.findAggregatedObjects(true, (o) =>
-          o.isA("sap.m.SearchField"),
-        )[0];
-        const oStatusBox = oView.findAggregatedObjects(true, (o) =>
-          o.isA("sap.m.MultiComboBox"),
-        )[0];
-        const oDateRange = oView.findAggregatedObjects(true, (o) =>
-          o.isA("sap.m.DateRangeSelection"),
-        )[0];
-
-        if (oSearchField) {
-          oSearchField.setValue("");
-        }
-        if (oStatusBox) {
-          oStatusBox.setSelectedKeys([]);
-        }
-        if (oDateRange) {
-          oDateRange.setDateValue(null);
-          oDateRange.setSecondDateValue(null);
-          oDateRange.setValue("");
-        }
-
-        oModel.setProperty("/filteredLogs", oModel.getProperty("/logs") || []);
-      },
     });
-  },
-);
+});

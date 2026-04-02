@@ -397,15 +397,18 @@ sap.ui.define([
                                         "If-Match": "*"
                                     },
                                     success: function () {
+                                        oModel.setUseBatch(true);
                                         MessageToast.show("🎉 Ghi Log & Upload file đính kèm thành công!");
                                         oModel.refresh(true);
                                     },
                                     error: function () {
+                                        oModel.setUseBatch(true);
                                         MessageBox.error("⚠️ Ghi log OK nhưng Upload file thất bại!");
                                     }
                                 });
                             },
                             error: function () {
+                                oModel.setUseBatch(true);
                                 MessageToast.show("⚠️ Mail đã gửi nhưng lỗi tạo dòng Log!");
                             },
                             complete: function () {

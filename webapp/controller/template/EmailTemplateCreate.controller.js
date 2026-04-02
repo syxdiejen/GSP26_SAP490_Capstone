@@ -198,18 +198,18 @@ sap.ui.define([
                     const aVariables = aResult.map(function (oItem) {
                         const sVarName = String(oItem.VarName || "").trim();
 
-                    return {
-                        id: oItem.VarId,
-                        varName: sVarName,
-                        label: sVarName,
-                        token: "{{" + sVarName + "}}",
-                        description: oItem.Description || "",
-                        isMandatory: oItem.IsMandatory === true || oItem.IsMandatory === "X"
-                    };
-            });
-            
-            oCreateModel.setProperty("/availableVariables", aVariables);
-            }, error: function (oError) {
+                        return {
+                            id: oItem.VarId,
+                            varName: sVarName,
+                            label: sVarName,
+                            token: "{{" + sVarName + "}}",
+                            description: oItem.Description || "",
+                            isMandatory: oItem.IsMandatory === true || oItem.IsMandatory === "X"
+                        };
+                    });
+
+                    that._getCreateModel().setProperty("/availableVariables", aVariables);
+                }, error: function (oError) {
                 MessageBox.error(that._getErrorMessage(oError, "Failed to load system variables"));
             }
             });

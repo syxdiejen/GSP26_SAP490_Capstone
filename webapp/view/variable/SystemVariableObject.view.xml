@@ -1,0 +1,94 @@
+<mvc:View
+    controllerName="zemail.template.app.controller.variable.SystemVariableObject"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns="sap.m"
+    xmlns:f="sap.f"
+    xmlns:form="sap.ui.layout.form">
+
+    <f:DynamicPage id="sysVarObjectPage">
+        <f:title>
+            <f:DynamicPageTitle>
+                <f:heading>
+                        <Title text="{viewState>/title}" level="H1" />
+                </f:heading>
+
+                <f:actions>
+                    <Button
+                        text="Save as Draft"
+                        type="Emphasized"
+                        icon="sap-icon://save"
+                        press=".onSavePress" />
+
+                    <Button
+                        text="Publish"
+                        type="Accept"
+                        icon="sap-icon://activate"
+                        press=".onActivatePress"
+                        visible="{= ${sysVar>IsActiveEntity} === false }" />
+                        
+                    <Button
+                        text="Cancel"
+                        type="Transparent"
+                        press=".onCancelPress" />
+                </f:actions>
+            </f:DynamicPageTitle>
+        </f:title>
+
+        <f:content>
+            <VBox class="sapUiContentPadding">
+                <Panel
+                    headerText="General Information"
+                    expandable="false"
+                    class="sapUiResponsiveMargin">
+
+                    <form:SimpleForm
+                        editable="true"
+                        layout="ResponsiveGridLayout"
+                        labelSpanXL="3"
+                        labelSpanL="3"
+                        labelSpanM="4"
+                        labelSpanS="12"
+                        adjustLabelSpan="false"
+                        emptySpanXL="4"
+                        emptySpanL="4"
+                        emptySpanM="0"
+                        emptySpanS="0"
+                        columnsXL="1"
+                        columnsL="1"
+                        columnsM="1">
+
+                        <Label text="Variable ID" />
+                        <Input
+                            value="{sysVar>VarId}"
+                            editable="false" />
+
+                        <Label text="Variable Name" required="true" />
+                        <Input
+                            value="{sysVar>VarName}"
+                            placeholder="Enter variable name"
+                            liveChange=".onVarNameChange" />
+
+                        <Label text="Mandatory" />
+                        <Switch
+                            state="{sysVar>IsMandatory}"
+                            customTextOn="Yes"
+                            customTextOff="No" />
+
+                        <Label text="Description" />
+                        <TextArea
+                            value="{sysVar>Description}"
+                            rows="4"
+                            growing="true"
+                            growingMaxLines="6"
+                            placeholder="Enter description" />
+
+                        <Label text="Created By" />
+                        <Input
+                            value="{sysVar>CreatedBy}"
+                            editable="false" />
+                    </form:SimpleForm>
+                </Panel>
+            </VBox>
+        </f:content>
+    </f:DynamicPage>
+</mvc:View>

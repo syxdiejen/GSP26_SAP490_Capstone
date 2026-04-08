@@ -8,8 +8,27 @@ sap.ui.define([
     "sap/m/Button",
     "sap/m/FormattedText",
     "sap/base/security/encodeXML",
-    "sap/ui/unified/FileUploader"
-], function (Controller, MessageToast, MessageBox, JSONModel, formatter, Dialog, Button, FormattedText, encodeXML, FileUploader) {
+    "sap/ui/unified/FileUploader",
+    "sap/m/Input",
+    "sap/m/Label",
+    "sap/m/VBox",
+    "sap/ui/core/BusyIndicator"
+], function (
+    Controller,
+    MessageToast,
+    MessageBox,
+    JSONModel,
+    formatter,
+    Dialog,
+    Button,
+    FormattedText,
+    encodeXML,
+    FileUploader,
+    Input,
+    Label,
+    VBox,
+    BusyIndicator
+) {
     "use strict";
 
     return Controller.extend("zemail.template.app.controller.template.EmailTemplateList", {
@@ -21,7 +40,7 @@ sap.ui.define([
         },
 
         _initViewModel: function () {
-            const oEmailModel = new JSONModel({
+            var oEmailModel = new JSONModel({
                 EmailTemplates: [],
                 AllEmailTemplates: [],
                 SearchValue: "",
@@ -41,13 +60,12 @@ sap.ui.define([
         },
 
         _setBusy: function (bBusy) {
-            this._getEmailModel().setProperty("/Busy", bBusy);
+            this._getEmailModel().setProperty("/Busy", !!bBusy);
         },
 
         _loadTemplates: function () {
-            const oODataModel = this._getODataModel();
-            const oEmailModel = this._getEmailModel();
-            const that = this;
+            var oODataModel = this._getODataModel();
+            var oEmailModel = this._getEmailModel();
 
             this._setBusy(true);
 
@@ -58,51 +76,43 @@ sap.ui.define([
                     "$orderby": "CreatedOn desc"
                 },
                 success: function (oData) {
-                    const aResults = Array.isArray(oData.results) ? oData.results : [];
-                    const aMappedTemplates = aResults.map(function (oItem) {
-                        return that._mapTemplate(oItem);
-                    });
+                    var aResults = Array.isArray(oData && oData.results) ? oData.results : [];
+                    var aMappedTemplates = aResults.map(this._mapTemplate.bind(this));
 
                     oEmailModel.setProperty("/AllEmailTemplates", aMappedTemplates);
-                    that._applyFilters();
-                    that._setBusy(false);
-                },
+                    this._applyFilters();
+                    this._setBusy(false);
+                }.bind(this),
                 error: function (oError) {
-                    that._setBusy(false);
-                    MessageBox.error("Không tải được dữ liệu template từ backend.");
+                    this._setBusy(false);
+                    MessageBox.error(this._extractODataError(oError, "Không tải được dữ liệu template từ backend."));
+                    /* eslint-disable no-console */
                     console.error("Load templates error:", oError);
-                }
+                    /* eslint-enable no-console */
+                }.bind(this)
             });
         },
 
         _mapTemplate: function (oItem) {
-            const aBodies = oItem.to_Body && Array.isArray(oItem.to_Body.results)
-                ? oItem.to_Body.results
-                : [];
+            var aBodies = oItem.to_Body && Array.isArray(oItem.to_Body.results) ? oItem.to_Body.results : [];
+            var aVariables = oItem.to_Variables && Array.isArray(oItem.to_Variables.results) ? oItem.to_Variables.results : [];
+            var sFullContent = aBodies.map(function (oBody) {
+                return oBody.Content || "";
+            }).join("\n").trim();
 
-            const aVariables = oItem.to_Variables && Array.isArray(oItem.to_Variables.results)
-                ? oItem.to_Variables.results
-                : [];
-
-            let sFullContent = "";
-            aBodies.forEach(function (oBody) {
-                sFullContent += (oBody.Content || "") + "\n";
-            });
-
-            let sSubject = oItem.Subject || "";
+            var sSubject = oItem.Subject || "";
             if (!sSubject) {
                 sSubject = this._extractSubject(sFullContent);
-                sFullContent = sFullContent.replace(/^Subject:.*$/m, "").trim();
+                sFullContent = this._removeSubjectLine(sFullContent);
             }
 
-            const oFirstBody = aBodies.length > 0 ? aBodies[0] : null;
+            var oFirstBody = aBodies.length > 0 ? aBodies[0] : null;
 
             return {
                 DbKey: oItem.DbKey,
                 IsActiveEntity: oItem.IsActiveEntity,
                 HasActiveEntity: oItem.HasActiveEntity,
                 HasDraftEntity: oItem.HasDraftEntity,
-
                 TemplateId: oItem.TemplateId,
                 TemplateName: oItem.TemplateName,
                 Department: oItem.Department,
@@ -112,7 +122,7 @@ sap.ui.define([
                 CreatedBy: oItem.CreatedBy,
                 CreatedOn: oItem.CreatedOn,
                 Subject: sSubject,
-                BodyContent: sFullContent.trim(),
+                BodyContent: sFullContent,
                 Language: oFirstBody ? oFirstBody.Language : "",
                 Version: oFirstBody ? oFirstBody.Version : "",
                 Variables: aVariables
@@ -124,16 +134,26 @@ sap.ui.define([
                 return "";
             }
 
-            const aLines = sContent.split("\n");
-            const sSubjectLine = aLines.find(function (sLine) {
-                return sLine && sLine.trim().startsWith("Subject:");
+            var aLines = String(sContent).split("\n");
+            var sSubjectLine = aLines.find(function (sLine) {
+                return sLine && sLine.trim().indexOf("Subject:") === 0;
             });
 
             if (sSubjectLine) {
-                return sSubjectLine.replace("Subject:", "").trim();
+                return sSubjectLine.replace(/^Subject:\s*/i, "").trim();
             }
 
             return sContent.length > 80 ? sContent.substring(0, 80) + "..." : sContent;
+        },
+
+        _removeSubjectLine: function (sContent) {
+            return String(sContent || "")
+                .split("\n")
+                .filter(function (sLine) {
+                    return !/^Subject:\s*/i.test(String(sLine || "").trim());
+                })
+                .join("\n")
+                .trim();
         },
 
         _normalizeText: function (vValue) {
@@ -141,24 +161,23 @@ sap.ui.define([
         },
 
         _applyFilters: function () {
-            const oEmailModel = this._getEmailModel();
-            const aAllTemplates = oEmailModel.getProperty("/AllEmailTemplates") || [];
-            const sSearchValue = this._normalizeText(oEmailModel.getProperty("/SearchValue"));
-            const sSelectedCategory = oEmailModel.getProperty("/SelectedCategory");
+            var oEmailModel = this._getEmailModel();
+            var aAllTemplates = oEmailModel.getProperty("/AllEmailTemplates") || [];
+            var sSearchValue = this._normalizeText(oEmailModel.getProperty("/SearchValue"));
+            var sSelectedCategory = oEmailModel.getProperty("/SelectedCategory");
 
-            const aFilteredTemplates = aAllTemplates.filter(function (oItem) {
-                const bMatchSearch = !sSearchValue || [
+            var aFilteredTemplates = aAllTemplates.filter(function (oItem) {
+                var bMatchSearch = !sSearchValue || [
                     oItem.TemplateName,
                     oItem.TemplateId,
                     oItem.Subject,
                     oItem.Category,
                     oItem.Department
                 ].some(function (vField) {
-                    return String(vField || "").toLowerCase().includes(sSearchValue);
+                    return String(vField || "").toLowerCase().indexOf(sSearchValue) > -1;
                 });
 
-                const bMatchCategory = sSelectedCategory === "ALL" || oItem.Category === sSelectedCategory;
-
+                var bMatchCategory = sSelectedCategory === "ALL" || oItem.Category === sSelectedCategory;
                 return bMatchSearch && bMatchCategory;
             });
 
@@ -166,18 +185,17 @@ sap.ui.define([
         },
 
         _getSelectedTemplate: function (oEvent) {
-            const oContext = oEvent.getSource().getBindingContext("email");
+            var oContext = oEvent.getSource().getBindingContext("email");
             return oContext ? oContext.getObject() : null;
         },
 
         _buildHeaderKey: function (oTemplate) {
-            const oODataModel = this._getODataModel();
-            const oKeyData = {
+            var oODataModel = this._getODataModel();
+            var oKeyData = {
                 DbKey: oTemplate.DbKey
             };
 
-            if (Object.prototype.hasOwnProperty.call(oTemplate, "IsActiveEntity") &&
-                oTemplate.IsActiveEntity !== undefined) {
+            if (Object.prototype.hasOwnProperty.call(oTemplate, "IsActiveEntity") && oTemplate.IsActiveEntity !== undefined) {
                 oKeyData.IsActiveEntity = oTemplate.IsActiveEntity;
             }
 
@@ -188,99 +206,89 @@ sap.ui.define([
             if (sMessage) {
                 MessageToast.show(sMessage);
             }
-
             this._loadTemplates();
         },
 
         onSendEmailPress: function (oEvent) {
-            const oContext = oEvent.getSource().getBindingContext("email");
+            var oContext = oEvent.getSource().getBindingContext("email");
             if (!oContext) {
                 MessageToast.show("Không tìm thấy dữ liệu Template!");
                 return;
             }
 
-            let oSelectedFile = null;
+            this._openSendEmailDialog(oContext);
+        },
 
-            const oInputTo = new sap.m.Input({
+        _openSendEmailDialog: function (oContext) {
+            var oSelectedFile = null;
+
+            var oInputTo = new Input({
                 placeholder: "Nhập email người nhận...",
-                type: sap.m.InputType.Email,
+                type: "Email",
                 width: "100%"
             });
 
-            const oInputSender = new sap.m.Input({
+            var oInputSender = new Input({
                 placeholder: "Nhập email người gửi (Reply-To)...",
-                type: sap.m.InputType.Email,
+                type: "Email",
                 width: "100%"
             });
 
-            const oFileUploader = new FileUploader({
+            var oFileUploader = new FileUploader({
                 width: "100%",
                 placeholder: "Chọn file đính kèm...",
                 buttonText: "Browse...",
                 change: function (oEvt) {
-                    const aFiles = oEvt.getParameter("files");
+                    var aFiles = oEvt.getParameter("files");
                     oSelectedFile = aFiles && aFiles.length > 0 ? aFiles[0] : null;
                 }
             });
 
-            const oDialog = new Dialog({
+            var oDialog = new Dialog({
                 title: "Xác nhận gửi Email",
-                contentWidth: "400px",
+                contentWidth: "420px",
                 content: [
-                    new sap.m.VBox({
+                    new VBox({
                         items: [
-                            new sap.m.Label({ text: "Gửi đến (To):", required: true }),
+                            new Label({ text: "Gửi đến (To):", required: true }),
                             oInputTo,
-                            new sap.m.Label({ text: "Email người gửi:" }).addStyleClass("sapUiSmallMarginTop"),
+                            new Label({ text: "Email người gửi:" }).addStyleClass("sapUiSmallMarginTop"),
                             oInputSender,
-                            new sap.m.Label({ text: "Đính kèm:" }).addStyleClass("sapUiSmallMarginTop"),
+                            new Label({ text: "Đính kèm:" }).addStyleClass("sapUiSmallMarginTop"),
                             oFileUploader
                         ]
                     }).addStyleClass("sapUiTinyMargin")
                 ],
                 beginButton: new Button({
-                    type: sap.m.ButtonType.Emphasized,
+                    type: "Emphasized",
                     text: "Send Email",
                     press: function () {
-                        const sTargetEmail = oInputTo.getValue().trim();
-                        const sSenderEmail = oInputSender.getValue().trim();
+                        var sTargetEmail = oInputTo.getValue().trim();
+                        var sSenderEmail = oInputSender.getValue().trim();
 
                         if (!sTargetEmail) {
                             MessageToast.show("Vui lòng nhập email người nhận!");
                             return;
                         }
 
+                        if (!this._isValidEmail(sTargetEmail)) {
+                            MessageBox.warning("Email người nhận không hợp lệ.");
+                            return;
+                        }
+
+                        if (sSenderEmail && !this._isValidEmail(sSenderEmail)) {
+                            MessageBox.warning("Email người gửi không hợp lệ.");
+                            return;
+                        }
+
                         oDialog.close();
 
-                        if (oSelectedFile) {
-                            sap.ui.core.BusyIndicator.show(0);
-                            const reader = new FileReader();
-
-                            reader.onload = function (e) {
-                                let sBase64Data = e.target.result;
-                                if (sBase64Data.indexOf(",") !== -1) {
-                                    sBase64Data = sBase64Data.split(",")[1];
-                                }
-
-                                this._executeSendEmail(
-                                    oContext,
-                                    sTargetEmail,
-                                    sSenderEmail,
-                                    oSelectedFile,
-                                    sBase64Data
-                                );
-                            }.bind(this);
-
-                            reader.readAsDataURL(oSelectedFile);
-                        } else {
-                            this._executeSendEmail(
-                                oContext,
-                                sTargetEmail,
-                                sSenderEmail,
-                                null,
-                                null
-                            );
-                        }
+                        this._prepareAndSendEmail({
+                            oContext: oContext,
+                            sTargetEmail: sTargetEmail,
+                            sSenderEmail: sSenderEmail,
+                            oSelectedFile: oSelectedFile
+                        });
                     }.bind(this)
                 }),
                 endButton: new Button({
@@ -298,39 +306,67 @@ sap.ui.define([
             oDialog.open();
         },
 
-        _executeSendEmail: function (
-            oContext,
-            sTargetEmail,
-            sSenderEmail,
-            oSelectedFile,
-            sAttachmentBase64
-        ) {
-            const oModel = this.getOwnerComponent().getModel();
-
-            let sSubject = oContext.getProperty("Subject") || "No Subject";
-            let sBodyContent = oContext.getProperty("BodyContent") || "";
-
-            const aVariables = {
-                VENDOR_NAME: "Công ty Cổ phần ABC",
-                PO_NUMBER: "PO-2026-0329",
-                ORDER_DATE: "29/03/2026",
-                SENDER_NAME: "Phòng Mua Hàng"
-            };
-
-            for (const key in aVariables) {
-                const regex1 = new RegExp("{" + key + "}", "g");
-                const regex2 = new RegExp("{{" + key + "}}", "g");
-
-                sSubject = sSubject
-                    .replace(regex1, aVariables[key])
-                    .replace(regex2, aVariables[key]);
-
-                sBodyContent = sBodyContent
-                    .replace(regex1, aVariables[key])
-                    .replace(regex2, aVariables[key]);
+        _prepareAndSendEmail: function (mParams) {
+            if (mParams.oSelectedFile) {
+                BusyIndicator.show(0);
+                this._readFileAsBase64(mParams.oSelectedFile)
+                    .then(function (sBase64Data) {
+                        return this._executeSendEmail(
+                            mParams.oContext,
+                            mParams.sTargetEmail,
+                            mParams.sSenderEmail,
+                            mParams.oSelectedFile,
+                            sBase64Data
+                        );
+                    }.bind(this))
+                    .catch(function (oError) {
+                        MessageBox.error("Không đọc được file đính kèm: " + oError.message);
+                    })
+                    .finally(function () {
+                        BusyIndicator.hide();
+                    });
+            } else {
+                this._executeSendEmail(
+                    mParams.oContext,
+                    mParams.sTargetEmail,
+                    mParams.sSenderEmail,
+                    null,
+                    null
+                );
             }
+        },
 
-            const payload = {
+        _readFileAsBase64: function (oFile) {
+            return new Promise(function (resolve, reject) {
+                var oReader = new FileReader();
+
+                oReader.onload = function (oEvent) {
+                    var sBase64Data = oEvent.target.result || "";
+                    if (sBase64Data.indexOf(",") > -1) {
+                        sBase64Data = sBase64Data.split(",")[1];
+                    }
+                    resolve(sBase64Data);
+                };
+
+                oReader.onerror = function () {
+                    reject(new Error("Read file failed"));
+                };
+
+                oReader.readAsDataURL(oFile);
+            });
+        },
+
+        _executeSendEmail: function (oContext, sTargetEmail, sSenderEmail, oSelectedFile, sAttachmentBase64) {
+            var oModel = this._getODataModel();
+            var sSubject = oContext.getProperty("Subject") || "No Subject";
+            var sBodyContent = oContext.getProperty("BodyContent") || "";
+
+            var mVariables = this._buildRuntimeVariables(oContext);
+
+            sSubject = this._replaceTemplateVariables(sSubject, mVariables);
+            sBodyContent = this._replaceTemplateVariables(sBodyContent, mVariables);
+
+            var oPayload = {
                 recipient: sTargetEmail,
                 subject: sSubject,
                 message: sBodyContent,
@@ -339,101 +375,151 @@ sap.ui.define([
             };
 
             if (sAttachmentBase64 && oSelectedFile) {
-                payload.attachmentBase64 = sAttachmentBase64;
-                payload.attachmentName = oSelectedFile.name;
-                payload.attachmentMime = oSelectedFile.type;
+                oPayload.attachmentBase64 = sAttachmentBase64;
+                oPayload.attachmentName = oSelectedFile.name;
+                oPayload.attachmentMime = oSelectedFile.type || "application/octet-stream";
             }
 
-            sap.ui.core.BusyIndicator.show(0);
+            BusyIndicator.show(0);
 
-            const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyzEicAiHKKbsTe2_--9Rnb5GpGGLyVnmpWH43Jd5BdmZr6gJA9C4lfpovjEhnQ4TpA/exec";
-
-            fetch(GOOGLE_SCRIPT_URL, {
-                method: "POST",
-                headers: { "Content-Type": "text/plain;charset=utf-8" },
-                body: JSON.stringify(payload),
-                redirect: "follow"
-            })
-                .then(function (response) {
-                    return response.text();
-                })
-                .then(function (resultText) {
-                    if (resultText === "SUCCESS") {
-                        MessageToast.show("🎉 Đã gửi mail thành công! Đang ghi Log...");
-
-                        const oLogData = {
-                            TemplateId: oContext.getProperty("TemplateId") || "",
-                            Status: "O",
-                            SenderEmail: sSenderEmail,
-                            FileName: oSelectedFile ? oSelectedFile.name : ""
-                        };
-
-                        oModel.setUseBatch(false);
-
-                        oModel.create("/EmailLog", oLogData, {
-                            success: function (oCreatedRecord) {
-                                if (!oSelectedFile) {
-                                    MessageToast.show("Ghi Log thành công!");
-                                    oModel.refresh(true);
-                                    return;
-                                }
-
-                                const sRunId = oCreatedRecord.RunId;
-                                const sEntityPath = oModel.createKey("/EmailLog", {
-                                    RunId: sRunId
-                                });
-                                const sUploadUrl = oModel.sServiceUrl + sEntityPath + "/$value";
-                                const sToken = oModel.getSecurityToken();
-
-                                $.ajax({
-                                    url: sUploadUrl,
-                                    type: "PUT",
-                                    data: oSelectedFile,
-                                    processData: false,
-                                    contentType: oSelectedFile.type,
-                                    headers: {
-                                        "x-csrf-token": sToken,
-                                        slug: oSelectedFile.name,
-                                        "If-Match": "*"
-                                    },
-                                    success: function () {
-                                        oModel.setUseBatch(true);
-                                        MessageToast.show("🎉 Ghi Log & Upload file đính kèm thành công!");
-                                        oModel.refresh(true);
-                                    },
-                                    error: function () {
-                                        oModel.setUseBatch(true);
-                                        MessageBox.error("⚠️ Ghi log OK nhưng Upload file thất bại!");
-                                    }
-                                });
-                            },
-                            error: function () {
-                                oModel.setUseBatch(true);
-                                MessageToast.show("⚠️ Mail đã gửi nhưng lỗi tạo dòng Log!");
-                            },
-                            complete: function () {
-                                oModel.setUseBatch(true);
-                            }
-                        });
-                    } else {
-                        MessageBox.error("Google Script Error: " + resultText);
+            this._callEmailApi(oPayload)
+                .then(function () {
+                    MessageToast.show("Đã gửi mail thành công! Đang ghi log...");
+                    return this._createEmailLog(oModel, oContext, sSenderEmail, oSelectedFile);
+                }.bind(this))
+                .then(function (oCreatedRecord) {
+                    if (!oSelectedFile || !oCreatedRecord || !oCreatedRecord.RunId) {
+                        MessageToast.show("Ghi log thành công!");
+                        oModel.refresh(true);
+                        return;
                     }
-                })
-                .catch(function (error) {
-                    MessageBox.error("❌ Lỗi gọi API: " + error.message);
+
+                    return this._uploadLogAttachment(oModel, oCreatedRecord.RunId, oSelectedFile).then(function () {
+                        MessageToast.show("Ghi log và upload file thành công!");
+                        oModel.refresh(true);
+                    });
+                }.bind(this))
+                .catch(function (oError) {
+                    MessageBox.error(oError.message || "Gửi email thất bại.");
                 })
                 .finally(function () {
-                    sap.ui.core.BusyIndicator.hide();
+                    BusyIndicator.hide();
+                    oModel.setUseBatch(true);
                 });
         },
 
+        _buildRuntimeVariables: function () {
+            return {
+                VENDOR_NAME: "Công ty Cổ phần ABC",
+                PO_NUMBER: "PO-2026-0329",
+                ORDER_DATE: "29/03/2026",
+                SENDER_NAME: "Phòng Mua Hàng"
+            };
+        },
+
+        _replaceTemplateVariables: function (sText, mVariables) {
+            var sResult = String(sText || "");
+            Object.keys(mVariables).forEach(function (sKey) {
+                var sValue = String(mVariables[sKey] || "");
+                var oRegexSingle = new RegExp("\\{" + sKey + "\\}", "g");
+                var oRegexDouble = new RegExp("\\{\\{" + sKey + "\\}\\}", "g");
+                sResult = sResult.replace(oRegexSingle, sValue).replace(oRegexDouble, sValue);
+            });
+            return sResult;
+        },
+
+        _callEmailApi: function (oPayload) {
+            var GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyzEicAiHKKbsTe2_--9Rnb5GpGGLyVnmpWH43Jd5BdmZr6gJA9C4lfpovjEhnQ4TpA/exec";
+
+            return fetch(GOOGLE_SCRIPT_URL, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(oPayload),
+                redirect: "follow"
+            }).then(function (oResponse) {
+                if (!oResponse.ok) {
+                    throw new Error("HTTP " + oResponse.status + " khi gọi email service");
+                }
+                return oResponse.text();
+            }).then(function (sResultText) {
+                if (String(sResultText).trim() !== "SUCCESS") {
+                    throw new Error("Google Script Error: " + sResultText);
+                }
+                return sResultText;
+            });
+        },
+
+        _createEmailLog: function (oModel, oContext, sSenderEmail, oSelectedFile) {
+            return new Promise(function (resolve, reject) {
+                var oLogData = {
+                    TemplateId: oContext.getProperty("TemplateId") || "",
+                    Status: "O",
+                    SenderEmail: sSenderEmail,
+                    FileName: oSelectedFile ? oSelectedFile.name : ""
+                };
+
+                oModel.setUseBatch(false);
+
+                oModel.create("/EmailLog", oLogData, {
+                    success: function (oCreatedRecord) {
+                        resolve(oCreatedRecord);
+                    },
+                    error: function (oError) {
+                        reject(new Error(this._extractODataError(oError, "Mail đã gửi nhưng lỗi tạo dòng log!")));
+                    }.bind(this)
+                });
+            }.bind(this));
+        },
+
+        _uploadLogAttachment: function (oModel, sRunId, oFile) {
+            return new Promise(function (resolve, reject) {
+                var sEntityPath = oModel.createKey("/EmailLog", { RunId: sRunId });
+                var sUploadUrl = oModel.sServiceUrl + sEntityPath + "/$value";
+                var sToken = oModel.getSecurityToken();
+
+                jQuery.ajax({
+                    url: sUploadUrl,
+                    type: "PUT",
+                    data: oFile,
+                    processData: false,
+                    contentType: oFile.type,
+                    headers: {
+                        "x-csrf-token": sToken,
+                        slug: oFile.name,
+                        "If-Match": "*"
+                    },
+                    success: function () {
+                        resolve();
+                    },
+                    error: function () {
+                        reject(new Error("Ghi log OK nhưng upload file thất bại!"));
+                    }
+                });
+            });
+        },
+
+        _extractODataError: function (oError, sFallback) {
+            try {
+                var oResponse = JSON.parse(oError.responseText);
+                return oResponse.error.message.value || sFallback;
+            } catch (e) {
+                return sFallback || "Operation failed";
+            }
+        },
+
+        _isValidEmail: function (sEmail) {
+            return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(sEmail || "").trim());
+        },
+
         onItemPress: function (oEvent) {
-            const oContext = oEvent.getSource().getBindingContext("email");
+            var oContext = oEvent.getSource().getBindingContext("email");
             this._navToDetail(oContext);
         },
 
         onEditTemplate: function (oEvent) {
-            const oTemplate = this._getSelectedTemplate(oEvent);
+            var oTemplate = this._getSelectedTemplate(oEvent);
 
             if (!oTemplate) {
                 MessageBox.error("Không tìm thấy template để chỉnh sửa.");
@@ -448,7 +534,7 @@ sap.ui.define([
         },
 
         onPreviewTemplate: function (oEvent) {
-            const oTemplate = this._getSelectedTemplate(oEvent);
+            var oTemplate = this._getSelectedTemplate(oEvent);
 
             if (!oTemplate) {
                 MessageBox.error("Không tìm thấy template.");
@@ -473,24 +559,21 @@ sap.ui.define([
                 this.getView().addDependent(this._oPreviewDialog);
             }
 
-            const sSafeHtml = "<pre style='white-space:pre-wrap;word-break:break-word;margin:0;'>" +
+            var sSafeHtml = "<pre style='white-space:pre-wrap;word-break:break-word;margin:0;'>" +
                 encodeXML(oTemplate.BodyContent || "No content") +
                 "</pre>";
 
             this._oPreviewDialog.removeAllContent();
-            this._oPreviewDialog.addContent(
-                new FormattedText({
-                    htmlText: sSafeHtml
-                })
-            );
+            this._oPreviewDialog.addContent(new FormattedText({
+                htmlText: sSafeHtml
+            }));
 
             this._oPreviewDialog.open();
         },
 
         onDeleteTemplate: function (oEvent) {
-            const oTemplate = this._getSelectedTemplate(oEvent);
-            const oODataModel = this._getODataModel();
-            const that = this;
+            var oTemplate = this._getSelectedTemplate(oEvent);
+            var oODataModel = this._getODataModel();
 
             if (!oTemplate) {
                 MessageBox.error("Không tìm thấy template để xóa.");
@@ -501,55 +584,50 @@ sap.ui.define([
                 actions: [MessageBox.Action.OK, MessageBox.Action.CANCEL],
                 emphasizedAction: MessageBox.Action.OK,
                 onClose: function (sAction) {
-                    let sKeyPath = "";
+                    var sKeyPath = "";
 
                     if (sAction !== MessageBox.Action.OK) {
                         return;
                     }
 
                     try {
-                        sKeyPath = that._buildHeaderKey(oTemplate);
+                        sKeyPath = this._buildHeaderKey(oTemplate);
                     } catch (e) {
                         MessageBox.error("Không tạo được key để xóa template.");
-                        console.error("Build key error:", e, oTemplate);
                         return;
                     }
 
-                    that._setBusy(true);
+                    this._setBusy(true);
 
                     oODataModel.remove(sKeyPath, {
                         success: function () {
-                            that._setBusy(false);
-                            that._refreshAfterMutation("Template deleted successfully");
-                        },
+                            this._setBusy(false);
+                            this._refreshAfterMutation("Template deleted successfully");
+                        }.bind(this),
                         error: function (oError) {
-                            that._setBusy(false);
-                            MessageBox.error("Không xóa được template từ backend.");
-                            console.error("Delete template error:", oError);
-                        }
+                            this._setBusy(false);
+                            MessageBox.error(this._extractODataError(oError, "Không xóa được template từ backend."));
+                        }.bind(this)
                     });
-                }
+                }.bind(this)
             });
         },
 
         onToggleActive: function (oEvent) {
-            const bState = oEvent.getParameter("state");
-            const oTemplate = this._getSelectedTemplate(oEvent);
-            const oODataModel = this._getODataModel();
-            const that = this;
+            var bState = oEvent.getParameter("state");
+            var oTemplate = this._getSelectedTemplate(oEvent);
+            var oODataModel = this._getODataModel();
+            var sKeyPath = "";
 
             if (!oTemplate) {
                 MessageBox.error("Không tìm thấy template để cập nhật trạng thái.");
                 return;
             }
 
-            let sKeyPath = "";
-
             try {
                 sKeyPath = this._buildHeaderKey(oTemplate);
             } catch (e) {
                 MessageBox.error("Không tạo được key để cập nhật trạng thái.");
-                console.error("Build key error:", e, oTemplate);
                 return;
             }
 
@@ -559,37 +637,36 @@ sap.ui.define([
                 IsActive: bState
             }, {
                 success: function () {
-                    that._setBusy(false);
-                    that._refreshAfterMutation(
+                    this._setBusy(false);
+                    this._refreshAfterMutation(
                         "Template " + oTemplate.TemplateId + " is now " + (bState ? "Active" : "Inactive")
                     );
-                },
+                }.bind(this),
                 error: function (oError) {
-                    that._setBusy(false);
-                    MessageBox.error("Không cập nhật được trạng thái template.");
-                    console.error("Update active status error:", oError);
-                    that._loadTemplates();
-                }
+                    this._setBusy(false);
+                    MessageBox.error(this._extractODataError(oError, "Không cập nhật được trạng thái template."));
+                    this._loadTemplates();
+                }.bind(this)
             });
         },
 
         onSearch: function (oEvent) {
-            const sValue = oEvent.getParameter("newValue") || "";
+            var sValue = oEvent.getParameter("newValue") || "";
             this._getEmailModel().setProperty("/SearchValue", sValue);
             this._applyFilters();
         },
 
         onCategoryChange: function (oEvent) {
-            const oSelectedItem = oEvent.getParameter("selectedItem");
-            const sKey = oSelectedItem ? oSelectedItem.getKey() : "ALL";
+            var oSelectedItem = oEvent.getParameter("selectedItem");
+            var sKey = oSelectedItem ? oSelectedItem.getKey() : "ALL";
 
             this._getEmailModel().setProperty("/SelectedCategory", sKey);
             this._applyFilters();
         },
 
         _navToDetail: function (oContext) {
-            const oRouter = this.getOwnerComponent().getRouter();
-            const oData = oContext.getObject();
+            var oRouter = this.getOwnerComponent().getRouter();
+            var oData = oContext.getObject();
 
             oRouter.navTo("detail", {
                 emailPath: window.encodeURIComponent(oData.DbKey)

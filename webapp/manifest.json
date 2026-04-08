@@ -97,6 +97,21 @@
 			"pattern": "emaillogs",
 			"name": "emaillogs",
 			"target": "emaillogs"
+		},
+		{
+			"pattern": "variablelist",
+			"name": "variablelist",
+			"target": "variablelist"
+		},
+		{
+			"pattern": "sysvar/create",
+			"name": "SystemVariableCreate",
+			"target": "SystemVariableObject"
+		},
+		{
+			"pattern": "sysvar/{VarId}/{IsActiveEntity}",
+			"name": "SystemVariableObject",
+			"target": "SystemVariableObject"
 		}
 		
 		],
@@ -120,6 +135,14 @@
 			"emaillogs": {
 				"id": "emaillogs",
 				"name": "logs.EmailLogs"
+			},
+			"variablelist": {
+				"id": "variablelist",
+				"name": "variable.SystemVariableList"
+			},
+			"SystemVariableObject": {
+				"id": "SystemVariableObject",
+				"name": "variable.SystemVariableObject"
 			}
 		}
 	},

@@ -43,6 +43,11 @@
                     text="Dashboard" 
                     key="dashboard"
                     icon="sap-icon://business-objects-experience" />
+
+                <tnt:NavigationListItem 
+                    text="System Variables" 
+                    key="variablelist"
+                    icon="sap-icon://business-objects-experience" />
                     
             </tnt:NavigationList> 
         </tnt:SideNavigation> 

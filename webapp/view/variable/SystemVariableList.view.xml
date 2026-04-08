@@ -1,0 +1,142 @@
+<mvc:View
+    controllerName="zemail.template.app.controller.variable.SystemVariableList"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns="sap.m"
+    xmlns:core="sap.ui.core"
+    xmlns:f="sap.f">
+
+    <f:DynamicPage id="sysVarListPage">
+        <f:title>
+            <f:DynamicPageTitle>
+                <f:heading>
+                    <Title text="System Variables" level="H1" />
+                </f:heading>
+
+                <f:actions>
+                    <Button
+                        text="Create"
+                        type="Emphasized"
+                        icon="sap-icon://add"
+                        press=".onCreatePress" />
+                </f:actions>
+            </f:DynamicPageTitle>
+        </f:title>
+
+        <f:header>
+            <f:DynamicPageHeader pinnable="true">
+                <HBox alignItems="Center" justifyContent="Start" wrap="Wrap">
+                    <SearchField
+                        id="searchField"
+                        width="320px"
+                        placeholder="Search by Variable Name or Description"
+                        liveChange=".onSearch"
+                        class="sapUiSmallMarginEnd sapUiSmallMarginBottom" />
+
+                    <Label
+                        text="Status"
+                        class="sapUiSmallMarginBegin sapUiSmallMarginEnd sapUiSmallMarginBottom" />
+
+                    <Select
+                        id="statusFilter"
+                        width="180px"
+                        change=".onStatusChange"
+                        class="sapUiSmallMarginEnd sapUiSmallMarginBottom">
+                        <items>
+                            <core:Item key="ALL" text="All" />
+                            <core:Item key="MANDATORY" text="Mandatory" />
+                            <core:Item key="OPTIONAL" text="Optional" />
+                            <core:Item key="DRAFT" text="Draft" />
+                        </items>
+                    </Select>
+
+                    <Button
+                        text="Go"
+                        type="Emphasized"
+                        icon="sap-icon://search"
+                        press=".onGoPress"
+                        class="sapUiSmallMarginBottom" />
+                </HBox>
+            </f:DynamicPageHeader>
+        </f:header>
+
+        <f:content>
+            <Table
+                id="systemVariableTable"
+                sticky="ColumnHeaders,HeaderToolbar"
+                mode="SingleSelectMaster"
+                growing="true"
+                growingScrollToLoad="true"
+                inset="false"
+                items="{sysVar>/SystemVariables}">
+
+                <headerToolbar>
+                    <OverflowToolbar>
+                        <Title text="Variables" level="H2" />
+                    </OverflowToolbar>
+                </headerToolbar>
+
+                <columns>
+                    <Column minScreenWidth="Tablet" demandPopin="true">
+                        <Text text="Variable Name" />
+                    </Column>
+
+                    <Column width="9rem" hAlign="Center">
+                        <Text text="Mandatory" />
+                    </Column>
+
+                    <Column minScreenWidth="Tablet" demandPopin="true">
+                        <Text text="Description" />
+                    </Column>
+
+                    <Column minScreenWidth="Tablet" demandPopin="true">
+                        <Text text="Created By" />
+                    </Column>
+
+                    <Column minScreenWidth="Tablet" demandPopin="true" hAlign="End">
+                        <Text text="Actions" />
+                    </Column>
+                </columns>
+
+                <items>
+                    <ColumnListItem type="Navigation" press=".onItemPress">
+                        <cells>
+                            <VBox>
+                                <HBox alignItems="Center" wrap="Wrap">
+                                    <Text
+                                        text="{sysVar>VarName}"
+                                        wrapping="false" />
+
+                                    <ObjectStatus
+                                        text="Draft"
+                                        state="Information"
+                                        visible="{= ${sysVar>IsActiveEntity} === false }"
+                                        class="sapUiTinyMarginBegin" />
+                                </HBox>
+
+                                <Text
+                                    text="Unsaved Changes"
+                                    visible="{= ${sysVar>HasDraftEntity} === true &amp;&amp; ${sysVar>IsActiveEntity} === true }"
+                                    class="sapUiTinyMarginTop sapUiTinyMarginBottom"
+                                    wrapping="false" />
+                            </VBox>
+
+                            <ObjectStatus
+                                text="{= ${sysVar>IsMandatory} ? 'Yes' : 'No' }"
+                                state="{= ${sysVar>IsMandatory} ? 'Success' : 'None' }" />
+
+                            <Text text="{sysVar>Description}" maxLines="2" />
+
+                            <Text text="{sysVar>CreatedBy}" />
+
+                            <HBox justifyContent="End">
+                                
+                                <Button icon="sap-icon://edit" type="Transparent" press=".onEditVariable" />
+                                <Button icon="sap-icon://delete" type="Transparent" press="onDeleteVariable" />
+                            </HBox>
+                        </cells>
+                    </ColumnListItem>
+                </items>
+            </Table>
+        </f:content>
+    </f:DynamicPage>
+</mvc:View>

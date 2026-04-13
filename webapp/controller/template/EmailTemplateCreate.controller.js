@@ -15,17 +15,28 @@ sap.ui.define([
 
     return Controller.extend("zemail.template.app.controller.template.EmailTemplateCreate", {
         onInit: function () {
+            this._oRouter = this.getOwnerComponent().getRouter();
             this.getView().setModel(this._createViewModel(), "create");
             this._loadSystemVariables();
+
+            this._oRouter.getRoute("templatecreate").attachPatternMatched(this._onCreateMatched, this);
+            this._oRouter.getRoute("templateobject").attachPatternMatched(this._onObjectMatched, this);
         },
 
         _createViewModel: function () {
             return new JSONModel({
+                mode: "create",
+                title: "Create Email Template",
+
                 templateName: "",
                 department: "",
                 category: "",
+                subject: "",
                 senderEmail: "",
+
                 dbKey: "",
+                bodyDbKey: "",
+                isActiveEntity: false,
                 isDraftCreated: false,
                 busy: false,
 
@@ -69,6 +80,82 @@ sap.ui.define([
             this._save(true);
         },
 
+        _onCreateMatched: function () {
+            this._resetForm();
+
+            this._getCreateModel().setProperty("/mode", "create");
+            this._getCreateModel().setProperty("/title", "Create Email Template");
+            this._getCreateModel().setProperty("/isActiveEntity", false);
+        },
+
+        _onObjectMatched: function (oEvent) {
+            var sDbKey = oEvent.getParameter("arguments").DbKey;
+            var bIsActiveEntity = String(oEvent.getParameter("arguments").IsActiveEntity) === "true";
+            var sPath = "/EmailHeader(DbKey=guid'" + sDbKey + "',IsActiveEntity=" + bIsActiveEntity + ")";
+
+            this._setBusy(true);
+
+            this._getODataModel().read(sPath, {
+                urlParameters: {
+                    "$expand": "to_Body,to_Variables"
+                },
+                success: function (oData) {
+                    this._fillFormFromHeader(oData);
+                    this._getCreateModel().setProperty("/mode", "edit");
+                    this._getCreateModel().setProperty("/title", "Edit Email Template");
+                    this._getCreateModel().setProperty("/dbKey", oData.DbKey);
+                    this._getCreateModel().setProperty("/isActiveEntity", oData.IsActiveEntity);
+                    this._getCreateModel().setProperty("/isDraftCreated", true);
+
+                    setTimeout(function () {
+                        var sHtml = this._getCreateModel().getProperty("/bodyHtml") || "";
+                        var oRTE = this.byId("emailRTE");
+                        var oCode = this.byId("emailCode");
+
+                        if (oRTE) {
+                            oRTE.setValue(sHtml);
+                        }
+                        if (oCode) {
+                            oCode.setValue(sHtml);
+                        }
+                    }.bind(this), 0);
+
+                    this._setBusy(false);
+                }.bind(this),
+                error: function (oError) {
+                    this._setBusy(false);
+                    MessageBox.error(this._getErrorMessage(oError, "Không tải được template."));
+                }.bind(this)
+            });
+        },
+
+        _fillFormFromHeader: function (oData) {
+            var oModel = this._getCreateModel();
+            var aBodies = (oData.to_Body && oData.to_Body.results) || [];
+            var oBody = aBodies[0] || null;
+
+            oModel.setProperty("/templateName", oData.TemplateName || "");
+            oModel.setProperty("/department", oData.Department || "");
+            oModel.setProperty("/category", oData.Category || "");
+            oModel.setProperty("/subject", oData.Subject || "");
+            oModel.setProperty("/dbKey", oData.DbKey || "");
+            oModel.setProperty("/isActiveEntity", !!oData.IsActiveEntity);
+
+            if (oBody) {
+                oModel.setProperty("/bodyDbKey", oBody.DbKey || "");
+                oModel.setProperty("/bodyLanguage", oBody.Language || "EN");
+                oModel.setProperty("/bodyVersion", oBody.Version || "001");
+                oModel.setProperty("/bodyLineType", oBody.LineType || "H");
+                this._updateBodyHtml(oBody.Content || "");
+            } else {
+                oModel.setProperty("/bodyDbKey", "");
+                oModel.setProperty("/bodyLanguage", "EN");
+                oModel.setProperty("/bodyVersion", "001");
+                oModel.setProperty("/bodyLineType", "H");
+                this._updateBodyHtml("");
+            }
+        },
+
         _save: function (bActivateAfterSave) {
             if (!this._validate()) {
                 return;
@@ -76,27 +163,23 @@ sap.ui.define([
 
             this._setBusy(true);
 
-            this._createHeader(this._buildHeaderPayload())
-                .then(function (oHeaderData) {
-                    var sDbKey = oHeaderData.DbKey || "";
+            var sMode = this._getCreateModel().getProperty("/mode");
 
-                    this._getCreateModel().setProperty("/dbKey", sDbKey);
-                    this._getCreateModel().setProperty("/isDraftCreated", true);
+            var pFlow = sMode === "edit"
+                ? this._updateExistingTemplate()
+                : this._createNewTemplate();
 
-                    return this._createBodyDraft(sDbKey).then(function () {
-                        return sDbKey;
-                    });
-                }.bind(this))
+            pFlow
                 .then(function (sDbKey) {
                     if (bActivateAfterSave) {
                         return this._activateDraft(sDbKey).then(function () {
-                            MessageToast.show("Template saved and activated");
-                            this._resetForm();
+                            MessageToast.show("Template published successfully");
+                            this._navBackToList();
                         }.bind(this));
                     }
 
                     MessageToast.show("Draft saved successfully");
-                    this._resetForm();
+                    this._navBackToList();
                     return Promise.resolve();
                 }.bind(this))
                 .catch(function (oError) {
@@ -107,6 +190,68 @@ sap.ui.define([
                 }.bind(this));
         },
 
+        _createNewTemplate: function () {
+            return this._createHeader(this._buildHeaderPayload())
+                .then(function (oHeaderData) {
+                    var sDbKey = oHeaderData.DbKey;
+                    this._getCreateModel().setProperty("/dbKey", sDbKey);
+                    return this._createBodyDraft(sDbKey).then(function () {
+                        return sDbKey;
+                    });
+                }.bind(this));
+        },
+
+        _updateExistingTemplate: function () {
+            return this._updateHeaderDraft()
+                .then(function () {
+                    return this._upsertBodyDraft();
+                }.bind(this))
+                .then(function () {
+                    return this._getCreateModel().getProperty("/dbKey");
+                }.bind(this));
+        },
+
+        _updateHeaderDraft: function () {
+            var oModel = this._getODataModel();
+            var sDbKey = this._getCreateModel().getProperty("/dbKey");
+            var sPath = "/EmailHeader(DbKey=guid'" + sDbKey + "',IsActiveEntity=false)";
+
+            return new Promise(function (resolve, reject) {
+                oModel.update(sPath, this._buildHeaderPayload(), {
+                    success: function () {
+                        resolve();
+                    },
+                    error: function (oError) {
+                        reject(new Error(this._getErrorMessage(oError, "Update Header failed")));
+                    }.bind(this)
+                });
+            }.bind(this));
+        },
+
+        _upsertBodyDraft: function () {
+            var oModel = this._getODataModel();
+            var oCreateModel = this._getCreateModel();
+            var sBodyDbKey = oCreateModel.getProperty("/bodyDbKey");
+            var oPayload = this._buildBodyPayload();
+
+            if (!sBodyDbKey) {
+                return this._createBodyDraft(oCreateModel.getProperty("/dbKey"));
+            }
+
+            var sPath = "/EmailBody(DbKey=guid'" + sBodyDbKey + "',IsActiveEntity=false)";
+
+            return new Promise(function (resolve, reject) {
+                oModel.update(sPath, oPayload, {
+                    success: function () {
+                        resolve();
+                    },
+                    error: function (oError) {
+                        reject(new Error(this._getErrorMessage(oError, "Update Body failed")));
+                    }.bind(this)
+                });
+            }.bind(this));
+        },
+
         _buildHeaderPayload: function () {
             var oModel = this._getCreateModel();
             var sSenderEmail = this._trim(oModel.getProperty("/senderEmail"));
@@ -114,7 +259,9 @@ sap.ui.define([
             var oPayload = {
                 TemplateName: this._trim(oModel.getProperty("/templateName")),
                 Department: this._trim(oModel.getProperty("/department")),
-                Category: this._trim(oModel.getProperty("/category"))
+                Category: this._trim(oModel.getProperty("/category")),
+                Subject: this._trim(oModel.getProperty("/subject")),
+                IsActive: false
             };
 
             if (sSenderEmail) {
@@ -203,7 +350,7 @@ sap.ui.define([
             var oODataModel = this._getODataModel();
 
             return new Promise(function (resolve, reject) {
-                oODataModel.create("/Header", oHeaderPayload, {
+                oODataModel.create("/EmailHeader", oHeaderPayload, {
                     success: function (oData) {
                         resolve(oData);
                     },
@@ -217,14 +364,10 @@ sap.ui.define([
         _createBodyDraft: function (sDbKey) {
             var oODataModel = this._getODataModel();
             var oBodyPayload = this._buildBodyPayload();
-            var sHeaderPath = "/" + oODataModel.createKey("Header", {
-                DbKey: sDbKey,
-                IsActiveEntity: false
-            });
-            var sPath = sHeaderPath + "/to_Body";
+            var sHeaderPath = "/EmailHeader(DbKey=guid'" + sDbKey + "',IsActiveEntity=false)/to_Body";
 
             return new Promise(function (resolve, reject) {
-                oODataModel.create(sPath, oBodyPayload, {
+                oODataModel.create(sHeaderPath, oBodyPayload, {
                     success: function (oData) {
                         resolve(oData);
                     },
@@ -239,7 +382,7 @@ sap.ui.define([
             var oODataModel = this._getODataModel();
 
             return new Promise(function (resolve, reject) {
-                oODataModel.callFunction("/HeaderActivate", {
+                oODataModel.callFunction("/EmailHeaderActivate", {
                     method: "POST",
                     urlParameters: {
                         DbKey: sDbKey,
@@ -492,11 +635,18 @@ sap.ui.define([
             var oModel = this._getCreateModel();
 
             oModel.setData({
+                mode: "create",
+                title: "Create Email Template",
+
                 templateName: "",
                 department: "",
                 category: "",
+                subject: "",
                 senderEmail: "",
+
                 dbKey: "",
+                bodyDbKey: "",
+                isActiveEntity: false,
                 isDraftCreated: false,
                 busy: false,
 
@@ -541,6 +691,36 @@ sap.ui.define([
             } catch (e) {
                 return sFallbackMessage || "Operation failed";
             }
-        }
+        },
+
+        onCancelPress: function () {
+            var oModel = this._getCreateModel();
+            var sMode = oModel.getProperty("/mode");
+            var sDbKey = oModel.getProperty("/dbKey");
+
+            if (sMode === "create" && !sDbKey) {
+                this._navBackToList();
+                return;
+            }
+
+            this._getODataModel().callFunction("/EmailHeaderDiscard", {
+                method: "POST",
+                urlParameters: {
+                    DbKey: sDbKey,
+                    IsActiveEntity: false
+                },
+                success: function () {
+                    MessageToast.show("Draft discarded");
+                    this._navBackToList();
+                }.bind(this),
+                error: function (oError) {
+                    MessageBox.error(this._getErrorMessage(oError, "Discard failed"));
+                }.bind(this)
+            });
+        },
+
+        _navBackToList: function () {
+            this.getOwnerComponent().getRouter().navTo("templatelist");
+        },
     });
 });

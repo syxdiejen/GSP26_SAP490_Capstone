@@ -39,9 +39,9 @@
                         change=".onCategoryChange">
                         <items>
                             <core:Item key="ALL" text="Show All" />
-                            <core:Item key="ORDER" text="ORDER" />
-                            <core:Item key="TEST" text="TEST" />
-                            <core:Item key="N" text="N" />
+                                <core:Item key="Sales" text="" />
+                                <core:Item key="Marketing" text="Marketing" />
+                                <core:Item key="System" text="System" />
                         </items>
                     </Select>
 

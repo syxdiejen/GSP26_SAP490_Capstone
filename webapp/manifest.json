@@ -79,14 +79,19 @@
 			"target": "templatelist"
 		},
 		{
+			"pattern": "template/create",
+			"name": "templatecreate",
+			"target": "templateobject"
+		},
+		{
+			"pattern": "template/{DbKey}/{IsActiveEntity}",
+			"name": "templateobject",
+			"target": "templateobject"
+		},
+		{
 			"pattern": "detail/{emailPath}",
 			"name": "detail",
 			"target": "detail"
-		},
-		{
-			"pattern": "template/create",
-			"name": "templatecreate",
-			"target": "templatecreate"
 		},
 		{
 			"pattern": "dashboard",
@@ -120,8 +125,8 @@
 				"id": "templatelist",
 				"name": "template.EmailTemplateList"
 			},
-			"templatecreate":{
-				"id": "templatecreate",
+			"templateobject":{
+				"id": "templateobject",
 				"name": "template.EmailTemplateCreate"
 			},
 			"detail": {

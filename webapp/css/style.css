@@ -103,6 +103,13 @@
         padding: 1rem;
     }
 
+    .dashboardSection {
+    background: var(--sapGroup_ContentBackground);
+    border-radius: 0.75rem;
+    box-shadow: var(--sapContent_Shadow0);
+    padding-bottom: 0.5rem;
+    }
+
     .previewDesktop .emailCard,
     .previewTablet .emailCard,
     .previewMobile .emailCard {

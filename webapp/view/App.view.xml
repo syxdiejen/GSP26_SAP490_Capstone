@@ -6,8 +6,6 @@
     xmlns:tnt="sap.tnt"
     displayBlock="true">
 
-<Shell>
-
 <tnt:ToolPage id="toolPage">
 
     <!-- HEADER -->
@@ -47,7 +45,7 @@
                 <tnt:NavigationListItem 
                     text="System Variables" 
                     key="variablelist"
-                    icon="sap-icon://business-objects-experience" />
+                    icon="sap-icon://action-settings" />
                     
             </tnt:NavigationList> 
         </tnt:SideNavigation> 
@@ -61,7 +59,5 @@
     </tnt:mainContents>
 
 </tnt:ToolPage>
-
-</Shell>
 
 </mvc:View>

@@ -12,6 +12,10 @@
                     <Title text="System Variables" level="H1" />
                 </f:heading>
 
+                <f:expandedContent>
+                    <Label text="Manage system-wide variables used to configure application behavior." />
+                </f:expandedContent>
+
                 <f:actions>
                     <Button
                         text="Create"

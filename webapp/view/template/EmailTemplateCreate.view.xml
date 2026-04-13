@@ -13,7 +13,7 @@
         <f:title>
             <f:DynamicPageTitle>
                 <f:heading>
-                    <Title text="Create Email Template" />
+                    <Title text="{create>/title}" />
                 </f:heading>
             </f:DynamicPageTitle>
         </f:title>
@@ -55,6 +55,7 @@
                                 id="emailRTE"
                                 visible="{= ${create>/editorMode} === 'RTE' }"
                                 value="{create>/bodyHtml}"
+                                change=".onBodyHtmlChange"
                                 width="100%"
                                 height="500px"
                                 sanitizeValue="false"/>
@@ -63,6 +64,7 @@
                                 id="emailCode"
                                 visible="{= ${create>/editorMode} === 'HTML' }"
                                 value="{create>/bodyHtml}"
+                                change=".onBodyHtmlChange"
                                 type="html"
                                 height="500px"
                                 width="100%"/>
@@ -131,6 +133,11 @@
         <f:footer>
             <OverflowToolbar>
                 <ToolbarSpacer />
+                <Button
+                    text="Cancel"
+                    type="Transparent"
+                    press=".onCancelPress"
+                    enabled="{= !${create>/busy} }" />
                 <Button
                     text="Save Draft"
                     type="Transparent"

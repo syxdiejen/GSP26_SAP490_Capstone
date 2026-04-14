@@ -89,7 +89,7 @@
 			"target": "templateobject"
 		},
 		{
-			"pattern": "detail/{emailPath}",
+			"pattern": "detail/{DbKey}/{IsActiveEntity}",
 			"name": "detail",
 			"target": "detail"
 		},

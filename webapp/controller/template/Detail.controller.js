@@ -1,191 +1,110 @@
 sap.ui.define([
     "sap/ui/core/mvc/Controller",
     "sap/ui/core/routing/History",
+    "sap/ui/core/BusyIndicator",
     "sap/m/MessageBox",
     "sap/m/MessageToast",
     "sap/ui/model/json/JSONModel",
+    "sap/m/Dialog",
+    "sap/m/Button",
+    "sap/ui/unified/FileUploader",
+    "sap/m/Input",
+    "sap/m/Label",
+    "sap/m/VBox",
     "zemail/template/app/model/formatter"
-], (Controller, History, MessageBox, MessageToast, JSONModel, formatter) => {
+], function (
+    Controller,
+    History,
+    BusyIndicator,
+    MessageBox,
+    MessageToast,
+    JSONModel,
+    Dialog,
+    Button,
+    FileUploader,
+    Input,
+    Label,
+    VBox,
+    formatter
+) {
     "use strict";
 
     return Controller.extend("zemail.template.app.controller.template.Detail", {
         formatter: formatter,
 
-        onInit() {
-            const oRouter = this.getOwnerComponent().getRouter();
-            oRouter.getRoute("detail").attachPatternMatched(this.onObjectMatched, this);
-
+        onInit: function () {
             this.getView().setModel(new JSONModel({
-                original: {
-                    subject: "",
-                    html: ""
-                },
-                fields: {
-                    from: "",
-                    to: "",
-                    cc: "",
-                    bcc: ""
-                },
-                variables: [],
-                renderedSubject: "",
-                renderedHtml: ""
+                DbKey: "",
+                IsActiveEntity: true,
+                TemplateId: "",
+                IsActive: false,
+                SenderEmail: "",
+                Subject: "",
+                BodyContent: "<div>No content</div>"
             }), "preview");
+
+            this.getOwnerComponent()
+                .getRouter()
+                .getRoute("detail")
+                .attachPatternMatched(this._onRouteMatched, this);
         },
 
-        onObjectMatched(oEvent) {
-            const sPath = window.decodeURIComponent(
-                oEvent.getParameter("arguments").emailPath
-            );
+        _onRouteMatched: function (oEvent) {
+            var oArgs = oEvent.getParameter("arguments") || {};
+            var sDbKey = decodeURIComponent(oArgs.DbKey || "");
+            var bIsActiveEntity = oArgs.IsActiveEntity === "true";
+            var oModel = this.getOwnerComponent().getModel();
 
-            this.getView().bindElement({
-                path: "/" + sPath,
-                model: "email"
-            });
-
-            const oEmailData = this.getView().getModel("email").getProperty("/" + sPath);
-            this._buildPreviewModel(oEmailData);
-        },
-
-        _buildPreviewModel(oEmailData) {
-            const oPreviewModel = this.getView().getModel("preview");
-
-            const sSubject = oEmailData.Subject || "";
-            const sHtml = oEmailData.Body || oEmailData.ContentHtml || "";
-
-            const aJsonVars = Array.isArray(oEmailData.Variables) ? oEmailData.Variables : [];
-            const aVarsFromSubject = this._extractVariables(sSubject);
-            const aVarsFromHtml = this._extractVariables(sHtml);
-
-            const aAllVars = [...new Set([
-                ...aJsonVars,
-                ...aVarsFromSubject,
-                ...aVarsFromHtml
-            ])];
-
-            oPreviewModel.setData({
-                original: {
-                    subject: sSubject,
-                    html: sHtml
-                },
-                fields: {
-                    from: oEmailData.From || "",
-                    to: oEmailData.To || "",
-                    cc: oEmailData.CC || "",
-                    bcc: oEmailData.BCC || ""
-                },
-                variables: aAllVars.map((sVar) => ({
-                    name: sVar,
-                    value: ""
-                })),
-                renderedSubject: sSubject,
-                renderedHtml: sHtml
-            });
-
-            this._updateRenderedPreview();
-        },
-
-        _extractVariables(sText) {
-            const aMatches = sText.match(/&([A-Z0-9_]+)&/g) || [];
-            return aMatches.map((sItem) => sItem.replace(/&/g, ""));
-        },
-
-        _updateRenderedPreview() {
-            const oPreviewModel = this.getView().getModel("preview");
-            const oData = oPreviewModel.getData();
-
-            let sRenderedSubject = oData.original.subject || "";
-            let sRenderedHtml = oData.original.html || "";
-
-            // Replace template variables: &CUSTOMER_NAME&, &ORDER_ID&...
-            (oData.variables || []).forEach((oVar) => {
-                const sToken = `&${oVar.name}&`;
-                const sValue = oVar.value || sToken;
-
-                sRenderedSubject = sRenderedSubject.split(sToken).join(sValue);
-                sRenderedHtml = sRenderedHtml.split(sToken).join(sValue);
-            });
-
-            // Replace default fields if template uses &FROM&, &TO&, &CC&, &BCC&
-            const mDefaultVars = {
-                "&FROM&": oData.fields.from || "&FROM&",
-                "&TO&": oData.fields.to || "&TO&",
-                "&CC&": oData.fields.cc || "&CC&",
-                "&BCC&": oData.fields.bcc || "&BCC&"
-            };
-
-            Object.keys(mDefaultVars).forEach((sToken) => {
-                sRenderedSubject = sRenderedSubject.split(sToken).join(mDefaultVars[sToken]);
-                sRenderedHtml = sRenderedHtml.split(sToken).join(mDefaultVars[sToken]);
-            });
-
-            oPreviewModel.setProperty("/renderedSubject", sRenderedSubject);
-            oPreviewModel.setProperty("/renderedHtml", sRenderedHtml);
-        },
-
-        onVariableLiveChange(oEvent) {
-            const sValue = oEvent.getParameter("value");
-            const oInput = oEvent.getSource();
-            const oContext = oInput.getBindingContext("preview");
-
-            if (oContext) {
-                oContext.getModel().setProperty(oContext.getPath() + "/value", sValue);
+            if (!sDbKey) {
+                MessageBox.error("Không tìm thấy DbKey.");
+                return;
             }
 
-            this._updateRenderedPreview();
+            var sPath = oModel.createKey("/EmailHeader", {
+                DbKey: sDbKey,
+                IsActiveEntity: bIsActiveEntity
+            });
+
+            BusyIndicator.show(0);
+
+            oModel.read(sPath, {
+                urlParameters: {
+                    "$expand": "to_Body,to_Variables",
+                    "$format": "json"
+                },
+                success: function (oData) {
+                    BusyIndicator.hide();
+
+                    var aBodies = oData.to_Body && oData.to_Body.results ? oData.to_Body.results : [];
+                    var sBodyContent = aBodies.map(function (oItem) {
+                        return oItem.Content || "";
+                    }).join("\n");
+
+                    this.getView().getModel("preview").setData({
+                        DbKey: oData.DbKey,
+                        IsActiveEntity: oData.IsActiveEntity,
+                        TemplateId: oData.TemplateId || "",
+                        IsActive: !!oData.IsActive,
+                        SenderEmail: oData.SenderEmail || "",
+                        Subject: oData.Subject || "",
+                        BodyContent: sBodyContent || "<div>No content</div>"
+                    });
+                }.bind(this),
+                error: function (oError) {
+                    BusyIndicator.hide();
+                    console.error("DETAIL READ ERROR:", oError);
+                    MessageBox.error("Không tải được dữ liệu detail template.");
+                }
+            });
         },
 
-        onHeaderFieldLiveChange(oEvent) {
-            const sValue = oEvent.getParameter("value");
-            const sField = oEvent.getSource().data("field");
-            const oPreviewModel = this.getView().getModel("preview");
+        onPreviewModeChange: function (oEvent) {
+            var sKey = oEvent.getParameter("item").getKey();
+            var oWrapper = this.byId("previewWrapper");
 
-            oPreviewModel.setProperty("/fields/" + sField, sValue);
-            this._updateRenderedPreview();
-        },
-
-        onApplyEngine() {
-            this._updateRenderedPreview();
-            MessageToast.show("Engine applied!");
-        },
-
-        onClearEngine() {
-            const oPreviewModel = this.getView().getModel("preview");
-            const oData = oPreviewModel.getData();
-
-            oData.fields = {
-                from: "",
-                to: "",
-                cc: "",
-                bcc: ""
-            };
-
-            oData.variables = (oData.variables || []).map((oVar) => ({
-                name: oVar.name,
-                value: ""
-            }));
-
-            oPreviewModel.setData(oData);
-            this._updateRenderedPreview();
-        },
-
-        onToggleSideContent() {
-            const oDSC = this.byId("idDynamicSideContent");
-            oDSC.setShowSideContent(!oDSC.getShowSideContent());
-        },
-
-        onNavBack() {
-            const sPreviousHash = History.getInstance().getPreviousHash();
-
-            if (sPreviousHash !== undefined) {
-                window.history.go(-1);
-            } else {
-                this.getOwnerComponent().getRouter().navTo("templatelist", {}, true);
+            if (!oWrapper) {
+                return;
             }
-        },
-
-        onPreviewModeChange(oEvent) {
-            const sKey = oEvent.getParameter("item").getKey();
-            const oWrapper = this.byId("previewWrapper");
 
             oWrapper.removeStyleClass("previewDesktop");
             oWrapper.removeStyleClass("previewTablet");
@@ -200,44 +119,365 @@ sap.ui.define([
             }
         },
 
-        onEditTemplate() {
-            const sPath = this.getView().getElementBinding("email").getPath();
+        onNavBack: function () {
+            var sPreviousHash = History.getInstance().getPreviousHash();
 
-            this.getOwnerComponent().getRouter().navTo("edit", {
-                emailPath: window.encodeURIComponent(sPath.substring(1))
+            if (sPreviousHash !== undefined) {
+                window.history.go(-1);
+            } else {
+                this.getOwnerComponent().getRouter().navTo("templatelist", {}, true);
+            }
+        },
+
+        onSendEmailPress: function () {
+            var oPreviewData = this.getView().getModel("preview").getData();
+
+            if (!oPreviewData || !oPreviewData.TemplateId) {
+                MessageToast.show("Không tìm thấy dữ liệu Template!");
+                return;
+            }
+
+            var oInputTo = new Input({
+                placeholder: "Nhập email người nhận...",
+                type: sap.m.InputType.Email,
+                width: "100%"
             });
+
+            var oInputCC = new Input({
+                placeholder: "Nhập email CC (Cách nhau dấu phẩy)...",
+                type: sap.m.InputType.Email,
+                width: "100%"
+            });
+
+            var oInputBCC = new Input({
+                placeholder: "Nhập email BCC (Cách nhau dấu phẩy)...",
+                type: sap.m.InputType.Email,
+                width: "100%"
+            });
+
+            var oInputSender = new Input({
+                placeholder: "Nhập email người gửi (Reply-To)...",
+                type: sap.m.InputType.Email,
+                width: "100%",
+                value: oPreviewData.SenderEmail || ""
+            });
+
+            var aSelectedFiles = [];
+
+            var oFileUploader = new FileUploader({
+                width: "100%",
+                placeholder: "Chọn một hoặc nhiều file đính kèm...",
+                buttonText: "Browse...",
+                multiple: true,
+                change: function (e) {
+                    aSelectedFiles = e.getParameter("files");
+                }
+            });
+
+            var oDialog = new Dialog({
+                title: "Xác nhận gửi Email",
+                contentWidth: "400px",
+                content: [
+                    new VBox({
+                        items: [
+                            new Label({ text: "Gửi đến (To):", required: true }),
+                            oInputTo,
+                            new Label({ text: "Đồng kính gửi (CC):" }).addStyleClass("sapUiSmallMarginTop"),
+                            oInputCC,
+                            new Label({ text: "Gửi ẩn danh (BCC):" }).addStyleClass("sapUiSmallMarginTop"),
+                            oInputBCC,
+                            new Label({ text: "Email Reply-To:" }).addStyleClass("sapUiSmallMarginTop"),
+                            oInputSender,
+                            new Label({ text: "Đính kèm:" }).addStyleClass("sapUiSmallMarginTop"),
+                            oFileUploader
+                        ]
+                    }).addStyleClass("sapUiTinyMargin")
+                ],
+                beginButton: new Button({
+                    type: sap.m.ButtonType.Emphasized,
+                    text: "Send Email",
+                    press: function () {
+                        var sTargetEmail = oInputTo.getValue().trim();
+                        var sSenderEmail = oInputSender.getValue().trim();
+                        var sCC = oInputCC.getValue().trim();
+                        var sBCC = oInputBCC.getValue().trim();
+
+                        if (!sTargetEmail) {
+                            MessageBox.warning("Vui lòng nhập email người nhận (TO)!");
+                            return;
+                        }
+
+                        var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                        var validateEmails = function (str) {
+                            if (!str) {
+                                return true;
+                            }
+                            return str.split(",").every(function (mail) {
+                                return emailRegex.test(mail.trim());
+                            });
+                        };
+
+                        if (
+                            !validateEmails(sTargetEmail) ||
+                            !validateEmails(sCC) ||
+                            !validateEmails(sBCC) ||
+                            (sSenderEmail && !validateEmails(sSenderEmail))
+                        ) {
+                            MessageBox.error(
+                                "⚠️ Định dạng Email không hợp lệ! Vui lòng kiểm tra lại."
+                            );
+                            return;
+                        }
+
+                        oDialog.close();
+
+                        if (aSelectedFiles && aSelectedFiles.length > 0) {
+                            BusyIndicator.show(0);
+
+                            var aFilePromises = Array.from(aSelectedFiles).map(function (file) {
+                                return new Promise(function (resolve, reject) {
+                                    var reader = new FileReader();
+
+                                    reader.onload = function (e) {
+                                        var sBase64Data = e.target.result;
+                                        if (sBase64Data.indexOf(",") !== -1) {
+                                            sBase64Data = sBase64Data.split(",")[1];
+                                        }
+
+                                        resolve({
+                                            name: file.name,
+                                            mime: file.type,
+                                            base64: sBase64Data,
+                                            rawFile: file
+                                        });
+                                    };
+
+                                    reader.onerror = reject;
+                                    reader.readAsDataURL(file);
+                                });
+                            });
+
+                            Promise.all(aFilePromises)
+                                .then(function (aReadyFiles) {
+                                    this._executeSendEmail(
+                                        sTargetEmail,
+                                        sCC,
+                                        sBCC,
+                                        sSenderEmail,
+                                        aReadyFiles
+                                    );
+                                }.bind(this))
+                                .catch(function () {
+                                    BusyIndicator.hide();
+                                    MessageBox.error("Lỗi đọc file đính kèm!");
+                                });
+                        } else {
+                            this._executeSendEmail(
+                                sTargetEmail,
+                                sCC,
+                                sBCC,
+                                sSenderEmail,
+                                []
+                            );
+                        }
+                    }.bind(this)
+                }),
+                endButton: new Button({
+                    text: "Cancel",
+                    press: function () {
+                        oDialog.close();
+                    }
+                }),
+                afterClose: function () {
+                    oDialog.destroy();
+                }
+            });
+
+            this.getView().addDependent(oDialog);
+            oDialog.open();
         },
 
-        onSendTestEmail() {
-            MessageBox.confirm(
-                "Bạn có muốn gửi email thử nghiệm đến địa chỉ cá nhân không?",
-                {
-                    title: "Xác nhận gửi thử",
-                    actions: [MessageBox.Action.OK, MessageBox.Action.CANCEL],
-                    emphasizedAction: MessageBox.Action.OK,
-                    onClose: (oAction) => {
-                        if (oAction === MessageBox.Action.OK) {
-                            MessageToast.show("Đã gửi email thử");
-                        }
-                    }
-                }
-            );
-        },
+        _executeSendEmail: function (
+            sTargetEmail,
+            sCC,
+            sBCC,
+            sSenderEmail,
+            aAttachments
+        ) {
+            var oPreviewData = this.getView().getModel("preview").getData();
+            var oModel = this.getOwnerComponent().getModel();
 
-        onDeleteTemplate() {
-            MessageBox.warning(
-                "Hành động này không thể hoàn tác.",
-                {
-                    title: "Xác nhận xóa template",
-                    actions: [MessageBox.Action.DELETE, MessageBox.Action.CANCEL],
-                    emphasizedAction: MessageBox.Action.CANCEL,
-                    onClose: (oAction) => {
-                        if (oAction === MessageBox.Action.DELETE) {
-                            MessageToast.show("Đã xóa template");
-                        }
+            var sSubject = oPreviewData.Subject || "No Subject";
+            var sBodyContent = oPreviewData.BodyContent || "";
+
+            var payload = {
+                recipient: sTargetEmail,
+                cc: sCC,
+                bcc: sBCC,
+                subject: sSubject,
+                message: sBodyContent,
+                replyTo: sSenderEmail,
+                senderName: "Hệ thống SAP Fiori",
+                attachments: []
+            };
+
+            if (aAttachments && aAttachments.length > 0) {
+                payload.attachments = aAttachments.map(function (att) {
+                    return {
+                        name: att.name,
+                        mime: att.mime,
+                        base64: att.base64
+                    };
+                });
+            }
+
+            BusyIndicator.show(0);
+
+            var GOOGLE_SCRIPT_URL =
+                "https://script.google.com/macros/s/AKfycbwF1oYKUwjmRvdCiU0k_3B8LoClwKOXhLsypWpMmYxg0igATXfV3GA3t49X8fXR1xDthw/exec";
+
+            fetch(GOOGLE_SCRIPT_URL, {
+                method: "POST",
+                headers: { "Content-Type": "text/plain;charset=utf-8" },
+                body: JSON.stringify(payload),
+                redirect: "follow"
+            })
+                .then(function (response) {
+                    return response.text();
+                })
+                .then(function (resultText) {
+                    if (resultText !== "SUCCESS") {
+                        BusyIndicator.hide();
+                        MessageBox.error("Google Script Error: " + resultText);
+                        return;
                     }
-                }
-            );
+
+                    MessageToast.show("🎉 Đã gửi mail thành công! Đang ghi Log...");
+
+                    var aToEmails = sTargetEmail.split(",");
+                    var aCCEmails = sCC ? sCC.split(",") : [];
+                    var aBCCEmails = sBCC ? sBCC.split(",") : [];
+                    var aLogDetails = [];
+                    var iCounter = 1;
+
+                    aToEmails.forEach(function (email) {
+                        if (email.trim()) {
+                            aLogDetails.push({
+                                Counter: String(iCounter++),
+                                Recipient: email.trim(),
+                                RecType: "TO"
+                            });
+                        }
+                    });
+
+                    aCCEmails.forEach(function (email) {
+                        if (email.trim()) {
+                            aLogDetails.push({
+                                Counter: String(iCounter++),
+                                Recipient: email.trim(),
+                                RecType: "CC"
+                            });
+                        }
+                    });
+
+                    aBCCEmails.forEach(function (email) {
+                        if (email.trim()) {
+                            aLogDetails.push({
+                                Counter: String(iCounter++),
+                                Recipient: email.trim(),
+                                RecType: "BCC"
+                            });
+                        }
+                    });
+
+                    var aLogAttachments = [];
+                    if (aAttachments && aAttachments.length > 0) {
+                        aAttachments.forEach(function (att, index) {
+                            aLogAttachments.push({
+                                FileId: index + 1,
+                                FileName: att.name,
+                                MimeType: att.mime
+                            });
+                        });
+                    }
+
+                    var oLogData = {
+                        TemplateId: oPreviewData.TemplateId || "",
+                        Status: "O",
+                        SenderEmail: sSenderEmail,
+                        to_Details: aLogDetails,
+                        to_Attachments: aLogAttachments
+                    };
+
+                    oModel.setUseBatch(false);
+
+                    oModel.create("/EmailLog", oLogData, {
+                        success: function (oCreatedRecord) {
+                            if (!aAttachments || aAttachments.length === 0) {
+                                MessageToast.show("Ghi Log thành công!");
+                                oModel.refresh(true);
+                                BusyIndicator.hide();
+                                return;
+                            }
+
+                            var sRunId = oCreatedRecord.RunId;
+
+                            var fnUploadSequentially = function (aFiles, iIndex) {
+                                if (iIndex >= aFiles.length) {
+                                    BusyIndicator.hide();
+                                    MessageBox.success("🎉 Email đã gửi và Upload TOÀN BỘ file đính kèm xuống SAP thành công!");
+                                    oModel.refresh(true);
+                                    return;
+                                }
+
+                                var att = aFiles[iIndex];
+                                var sEntityPath = oModel.createKey("/AttachmentLogs", {
+                                    RunId: sRunId,
+                                    FileId: iIndex + 1
+                                });
+                                var sUploadUrl = oModel.sServiceUrl + sEntityPath + "/$value";
+
+                                $.ajax({
+                                    url: sUploadUrl,
+                                    type: "PUT",
+                                    data: att.rawFile,
+                                    processData: false,
+                                    contentType: att.mime,
+                                    headers: {
+                                        "x-csrf-token": oModel.getSecurityToken(),
+                                        slug: att.name,
+                                        "If-Match": "*"
+                                    },
+                                    success: function () {
+                                        fnUploadSequentially(aFiles, iIndex + 1);
+                                    },
+                                    error: function () {
+                                        BusyIndicator.hide();
+                                        MessageBox.error(
+                                            "⚠️ Log đã ghi, nhưng bị kẹt ở File số " +
+                                            (iIndex + 1) +
+                                            ": " +
+                                            att.name
+                                        );
+                                    }
+                                });
+                            };
+
+                            fnUploadSequentially(aAttachments, 0);
+                        },
+                        error: function () {
+                            BusyIndicator.hide();
+                            MessageToast.show("⚠️ Mail đã gửi nhưng lỗi tạo Log!");
+                        },
+                        completed: function () {
+                            oModel.setUseBatch(true);
+                        }
+                    });
+                }.bind(this))
+                .catch(function (error) {
+                    BusyIndicator.hide();
+                    MessageBox.error("❌ Lỗi gọi API: " + error.message);
+                });
         }
     });
 });

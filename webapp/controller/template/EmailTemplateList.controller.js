@@ -6,8 +6,7 @@ sap.ui.define([
     "zemail/template/app/model/formatter",
     "sap/m/Dialog",
     "sap/m/Button",
-    "sap/m/FormattedText",
-    "sap/base/security/encodeXML",
+    "sap/ui/core/HTML",
     "sap/ui/unified/FileUploader",
     "sap/m/Input",
     "sap/m/Label",
@@ -21,8 +20,7 @@ sap.ui.define([
     formatter,
     Dialog,
     Button,
-    FormattedText,
-    encodeXML,
+    HTML,
     FileUploader,
     Input,
     Label,
@@ -34,11 +32,17 @@ sap.ui.define([
     return Controller.extend("zemail.template.app.controller.template.EmailTemplateList", {
         formatter: formatter,
 
+        // =========================================================
+        // 1. LIFECYCLE
+        // =========================================================
         onInit: function () {
             this._initViewModel();
             this._loadTemplates();
         },
 
+        // =========================================================
+        // 2. MODEL HELPERS
+        // =========================================================
         _initViewModel: function () {
             var oEmailModel = new JSONModel({
                 EmailTemplates: [],
@@ -63,6 +67,9 @@ sap.ui.define([
             this._getEmailModel().setProperty("/Busy", !!bBusy);
         },
 
+        // =========================================================
+        // 3. LOAD / MAP / FILTER DATA
+        // =========================================================
         _loadTemplates: function () {
             var oODataModel = this._getODataModel();
             var oEmailModel = this._getEmailModel();
@@ -129,37 +136,6 @@ sap.ui.define([
             };
         },
 
-        _extractSubject: function (sContent) {
-            if (!sContent) {
-                return "";
-            }
-
-            var aLines = String(sContent).split("\n");
-            var sSubjectLine = aLines.find(function (sLine) {
-                return sLine && sLine.trim().indexOf("Subject:") === 0;
-            });
-
-            if (sSubjectLine) {
-                return sSubjectLine.replace(/^Subject:\s*/i, "").trim();
-            }
-
-            return sContent.length > 80 ? sContent.substring(0, 80) + "..." : sContent;
-        },
-
-        _removeSubjectLine: function (sContent) {
-            return String(sContent || "")
-                .split("\n")
-                .filter(function (sLine) {
-                    return !/^Subject:\s*/i.test(String(sLine || "").trim());
-                })
-                .join("\n")
-                .trim();
-        },
-
-        _normalizeText: function (vValue) {
-            return String(vValue || "").toLowerCase().trim();
-        },
-
         _applyFilters: function () {
             var oEmailModel = this._getEmailModel();
             var aAllTemplates = oEmailModel.getProperty("/AllEmailTemplates") || [];
@@ -184,11 +160,52 @@ sap.ui.define([
             oEmailModel.setProperty("/EmailTemplates", aFilteredTemplates);
         },
 
+        onSearch: function (oEvent) {
+            var sValue = oEvent.getParameter("newValue") || "";
+            this._getEmailModel().setProperty("/SearchValue", sValue);
+            this._applyFilters();
+        },
+
+        onCategoryChange: function (oEvent) {
+            var oSelectedItem = oEvent.getParameter("selectedItem");
+            var sKey = oSelectedItem ? oSelectedItem.getKey() : "ALL";
+
+            this._getEmailModel().setProperty("/SelectedCategory", sKey);
+            this._applyFilters();
+        },
+
+        // =========================================================
+        // 4. SELECTION / NAVIGATION
+        // =========================================================
         _getSelectedTemplate: function (oEvent) {
             var oContext = oEvent.getSource().getBindingContext("email");
             return oContext ? oContext.getObject() : null;
         },
 
+        onItemPress: function (oEvent) {
+            var oContext = oEvent.getSource().getBindingContext("email");
+            this._navToDetail(oContext);
+        },
+
+        _navToDetail: function (oContext) {
+            var oRouter = this.getOwnerComponent().getRouter();
+            var oData = oContext.getObject();
+
+            console.log("NAV DATA:", oData);
+
+            oRouter.navTo("detail", {
+                DbKey: encodeURIComponent(oData.DbKey),
+                IsActiveEntity: String(oData.IsActiveEntity)
+            });
+        },
+
+        onCreateEmail: function () {
+            this.getOwnerComponent().getRouter().navTo("templatecreate");
+        },
+
+        // =========================================================
+        // 5. TEMPLATE ACTIONS (EDIT / DELETE / TOGGLE)
+        // =========================================================
         _buildHeaderKey: function (oTemplate) {
             var oODataModel = this._getODataModel();
             var oKeyData = {
@@ -209,439 +226,50 @@ sap.ui.define([
             this._loadTemplates();
         },
 
-        // ====================================================================
-        // 1. HÀM TẠO POPUP GIAO DIỆN (Bật Multiple Files & Promise Read)
-        // ====================================================================
-        onSendEmailPress: function (oEvent) {
-          var oContext = oEvent.getSource().getBindingContext("email");
-          if (!oContext) {
-            sap.m.MessageToast.show("Không tìm thấy dữ liệu Template!");
-            return;
-          }
-
-          var oInputTo = new sap.m.Input({
-            placeholder: "Nhập email người nhận...",
-            type: sap.m.InputType.Email,
-            width: "100%",
-          });
-          var oInputCC = new sap.m.Input({
-            placeholder: "Nhập email CC (Cách nhau dấu phẩy)...",
-            type: sap.m.InputType.Email,
-            width: "100%",
-          });
-          var oInputBCC = new sap.m.Input({
-            placeholder: "Nhập email BCC (Cách nhau dấu phẩy)...",
-            type: sap.m.InputType.Email,
-            width: "100%",
-          });
-          var oInputSender = new sap.m.Input({
-            placeholder: "Nhập email người gửi (Reply-To)...",
-            type: sap.m.InputType.Email,
-            width: "100%",
-          });
-
-          var aSelectedFiles = []; // Mảng chứa các file user chọn
-
-          var oFileUploader = new sap.ui.unified.FileUploader({
-            width: "100%",
-            placeholder: "Chọn một hoặc nhiều file đính kèm...",
-            buttonText: "Browse...",
-            multiple: true, // 🌟 BẬT TÍNH NĂNG CHỌN NHIỀU FILE
-            change: function (e) {
-              aSelectedFiles = e.getParameter("files");
-            },
-          });
-
-          var oDialog = new sap.m.Dialog({
-            title: "Xác nhận gửi Email",
-            contentWidth: "400px",
-            content: [
-              new sap.m.VBox({
-                items: [
-                  new sap.m.Label({ text: "Gửi đến (To):", required: true }),
-                  oInputTo,
-                  new sap.m.Label({
-                    text: "Đồng kính gửi (CC):",
-                  }).addStyleClass("sapUiSmallMarginTop"),
-                  oInputCC,
-                  new sap.m.Label({ text: "Gửi ẩn danh (BCC):" }).addStyleClass(
-                    "sapUiSmallMarginTop",
-                  ),
-                  oInputBCC,
-                  new sap.m.Label({ text: "Email Reply-To:" }).addStyleClass(
-                    "sapUiSmallMarginTop",
-                  ),
-                  oInputSender,
-                  new sap.m.Label({ text: "Đính kèm:" }).addStyleClass(
-                    "sapUiSmallMarginTop",
-                  ),
-                  oFileUploader,
-                ],
-              }).addStyleClass("sapUiTinyMargin"),
-            ],
-            beginButton: new sap.m.Button({
-              type: sap.m.ButtonType.Emphasized,
-              text: "Send Email",
-              press: function () {
-                var sTargetEmail = oInputTo.getValue().trim();
-                var sSenderEmail = oInputSender.getValue().trim();
-                var sCC = oInputCC.getValue().trim();
-                var sBCC = oInputBCC.getValue().trim();
-                // 🌟 KIỂM TRA VALIDATE EMAIL (Regex)
-                if (!sTargetEmail) {
-                  sap.m.MessageBox.warning(
-                    "Vui lòng nhập email người nhận (TO)!",
-                  );
-                  return;
-                }
-
-                // Hàm check định dạng email (hỗ trợ nhiều email phẩy nhau)
-                var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                var validateEmails = function (str) {
-                  if (!str) return true; // Rỗng thì bỏ qua
-                  var aMails = str.split(",");
-                  return aMails.every(function (mail) {
-                    return emailRegex.test(mail.trim());
-                  });
-                };
-
-                if (
-                  !validateEmails(sTargetEmail) ||
-                  !validateEmails(sCC) ||
-                  !validateEmails(sBCC) ||
-                  (sSenderEmail && !validateEmails(sSenderEmail))
-                ) {
-                  sap.m.MessageBox.error(
-                    "⚠️ Định dạng Email không hợp lệ! Vui lòng kiểm tra lại (chú ý dấu phẩy nếu có nhiều email).",
-                  );
-                  return;
-                }
-                oDialog.close();
-
-                // 🌟 XỬ LÝ NHIỀU FILE VỚI PROMISE.ALL
-                if (aSelectedFiles && aSelectedFiles.length > 0) {
-                  sap.ui.core.BusyIndicator.show(0);
-                  var aFilePromises = [];
-
-                  Array.from(aSelectedFiles).forEach(function (file) {
-                    var p = new Promise(function (resolve, reject) {
-                      var reader = new FileReader();
-                      reader.onload = function (e) {
-                        var sBase64Data = e.target.result;
-                        if (sBase64Data.indexOf(",") !== -1) {
-                          sBase64Data = sBase64Data.split(",")[1];
-                        }
-                        resolve({
-                          name: file.name,
-                          mime: file.type,
-                          base64: sBase64Data,
-                          rawFile: file, // Giữ lại object file để upload OData Media
-                        });
-                      };
-                      reader.onerror = reject;
-                      reader.readAsDataURL(file);
-                    });
-                    aFilePromises.push(p);
-                  });
-
-                  Promise.all(aFilePromises)
-                    .then(
-                      function (aReadyFiles) {
-                        this._executeSendEmail(
-                          oContext,
-                          sTargetEmail,
-                          sCC,
-                          sBCC,
-                          sSenderEmail,
-                          aReadyFiles,
-                        );
-                      }.bind(this),
-                    )
-                    .catch(function (err) {
-                      sap.ui.core.BusyIndicator.hide();
-                      sap.m.MessageBox.error("Lỗi đọc file đính kèm!");
-                    });
-                } else {
-                  this._executeSendEmail(
-                    oContext,
-                    sTargetEmail,
-                    sCC,
-                    sBCC,
-                    sSenderEmail,
-                    [],
-                  );
-                }
-              }.bind(this),
-            }),
-            endButton: new sap.m.Button({
-              text: "Cancel",
-              press: function () {
-                oDialog.close();
-              },
-            }),
-            afterClose: function () {
-              oDialog.destroy();
-            },
-          });
-
-          this.getView().addDependent(oDialog);
-          oDialog.open();
-        },
-
-        // ====================================================================
-        // 2. HÀM THỰC THI (Hỗ trợ Deep Insert + Upload Nhiều File Cùng Lúc)
-        // ====================================================================
-        _executeSendEmail: function (
-          oContext,
-          sTargetEmail,
-          sCC,
-          sBCC,
-          sSenderEmail,
-          aAttachments,
-        ) {
-          var oModel = this.getOwnerComponent().getModel();
-          var sSubject = oContext.getProperty("Subject") || "No Subject";
-          var sBodyContent = oContext.getProperty("BodyContent") || "";
-
-          // --- ĐÓNG GÓI PAYLOAD GOOGLE ---
-          var payload = {
-            recipient: sTargetEmail,
-            cc: sCC,
-            bcc: sBCC,
-            subject: sSubject,
-            message: sBodyContent,
-            replyTo: sSenderEmail,
-            senderName: "Hệ thống SAP Fiori",
-            attachments: [], // Chứa mảng file
-          };
-
-          if (aAttachments && aAttachments.length > 0) {
-            payload.attachments = aAttachments.map(function (att) {
-              return { name: att.name, mime: att.mime, base64: att.base64 };
-            });
-          }
-
-          sap.ui.core.BusyIndicator.show(0);
-
-          var GOOGLE_SCRIPT_URL =
-            "https://script.google.com/macros/s/AKfycbwF1oYKUwjmRvdCiU0k_3B8LoClwKOXhLsypWpMmYxg0igATXfV3GA3t49X8fXR1xDthw/exec";
-
-          // --- BẮN API GOOGLE ---
-          fetch(GOOGLE_SCRIPT_URL, {
-            method: "POST",
-            headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: JSON.stringify(payload),
-            redirect: "follow",
-          })
-            .then(function (response) {
-              return response.text();
-            })
-            .then((resultText) => {
-              if (resultText === "SUCCESS") {
-                sap.m.MessageToast.show(
-                  "🎉 Đã gửi mail thành công! Đang ghi Log...",
-                );
-
-                // --- 1. CHUẨN BỊ DATA CHO DETAILS (TO/CC/BCC) ---
-                var aToEmails = sTargetEmail.split(",");
-                var aCCEmails = sCC ? sCC.split(",") : [];
-                var aBCCEmails = sBCC ? sBCC.split(",") : [];
-                var aLogDetails = [];
-                var iCounter = 1;
-
-                aToEmails.forEach(function (email) {
-                  if (email.trim())
-                    aLogDetails.push({
-                      Counter: String(iCounter++),
-                      Recipient: email.trim(),
-                      RecType: "TO",
-                    });
-                });
-                aCCEmails.forEach(function (email) {
-                  if (email.trim())
-                    aLogDetails.push({
-                      Counter: String(iCounter++),
-                      Recipient: email.trim(),
-                      RecType: "CC",
-                    });
-                });
-                aBCCEmails.forEach(function (email) {
-                  if (email.trim())
-                    aLogDetails.push({
-                      Counter: String(iCounter++),
-                      Recipient: email.trim(),
-                      RecType: "BCC",
-                    });
-                });
-
-                // --- 2. CHUẨN BỊ DATA CHO ATTACHMENT SHELLS (Tạo Vỏ File) ---
-                var aLogAttachments = [];
-                if (aAttachments && aAttachments.length > 0) {
-                  aAttachments.forEach(function (att, index) {
-                    aLogAttachments.push({
-                      FileId: index + 1, // FileId là INT4 -> Phải là số, không được dùng String()
-                      FileName: att.name,
-                      MimeType: att.mime,
-                    });
-                  });
-                }
-
-                // --- 3. ĐÓNG GÓI DEEP INSERT ---
-                var oLogData = {
-                  TemplateId: oContext.getProperty("TemplateId") || "",
-                  Status: "O",
-                  SenderEmail: sSenderEmail,
-                  to_Details: aLogDetails, // ⚠️ Đổi thành tên Navigation Property thực tế nối xuống bảng Detail
-                  to_Attachments: aLogAttachments, // ⚠️ Đổi thành tên Navigation Property thực tế nối xuống bảng File
-                };
-
-                oModel.setUseBatch(false);
-
-                // --- 4. GỌI LỆNH CREATE (TẠO HEADER + DETAIL + VỎ FILE) ---
-                oModel.create("/EmailLog", oLogData, {
-                  success: function (oCreatedRecord) {
-                    if (!aAttachments || aAttachments.length === 0) {
-                      sap.m.MessageToast.show("Ghi Log thành công!");
-                      oModel.refresh(true);
-                      sap.ui.core.BusyIndicator.hide();
-                      return;
-                    }
-
-                    // --- 5. BƠM "RUỘT" FILE VÀO TỪNG CÁI VỎ VỪA TẠO (XẾP HÀNG TUẦN TỰ) ---
-                    var sRunId = oCreatedRecord.RunId;
-
-                    // Hàm upload tuần tự (Đệ quy)
-                    var fnUploadSequentially = function (aFiles, iIndex) {
-                      // Nếu đã duyệt hết mảng file -> Báo thành công
-                      if (iIndex >= aFiles.length) {
-                        sap.ui.core.BusyIndicator.hide();
-                        sap.m.MessageBox.success(
-                          "🎉 Email đã gửi và Upload TOÀN BỘ file đính kèm xuống SAP thành công!",
-                        );
-                        oModel.refresh(true);
-                        return;
-                      }
-
-                      var att = aFiles[iIndex];
-                      var sEntityPath = oModel.createKey("/AttachmentLogs", {
-                        RunId: sRunId,
-                        FileId: iIndex + 1,
-                      });
-                      var sUploadUrl =
-                        oModel.sServiceUrl + sEntityPath + "/$value";
-
-                      // Thực hiện bắn AJAX cho 1 file
-                      $.ajax({
-                        url: sUploadUrl,
-                        type: "PUT",
-                        data: att.rawFile,
-                        processData: false,
-                        contentType: att.mime,
-                        headers: {
-                          "x-csrf-token": oModel.getSecurityToken(),
-                          slug: att.name,
-                          "If-Match": "*",
-                        },
-                        success: function () {
-                          // Tải xong file này -> Gọi hàm này để tải file tiếp theo
-                          fnUploadSequentially(aFiles, iIndex + 1);
-                        },
-                        error: function (err) {
-                          sap.ui.core.BusyIndicator.hide();
-                          sap.m.MessageBox.error(
-                            "⚠️ Log đã ghi, nhưng bị kẹt ở File số " +
-                              (iIndex + 1) +
-                              ": " +
-                              att.name,
-                          );
-                        },
-                      });
-                    };
-                    fnUploadSequentially(aAttachments, 0);
-                  },
-                  error: function () {
-                    sap.ui.core.BusyIndicator.hide();
-                    sap.m.MessageToast.show(
-                      "⚠️ Mail đã gửi nhưng lỗi tạo Log!",
-                    );
-                  },
-                  completed: function () {
-                    oModel.setUseBatch(true);
-                  },
-                });
-              } else {
-                sap.ui.core.BusyIndicator.hide();
-                sap.m.MessageBox.error("Google Script Error: " + resultText);
-              }
-            })
-            .catch(function (error) {
-              sap.ui.core.BusyIndicator.hide();
-              sap.m.MessageBox.error("❌ Lỗi gọi API: " + error.message);
-            });
-        },
-
-        _extractODataError: function (oError, sFallback) {
-            try {
-                var oResponse = JSON.parse(oError.responseText);
-                return oResponse.error.message.value || sFallback;
-            } catch (e) {
-                return sFallback || "Operation failed";
-            }
-        },
-
-        _isValidEmail: function (sEmail) {
-            return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(sEmail || "").trim());
-        },
-
-        onItemPress: function (oEvent) {
-            var oContext = oEvent.getSource().getBindingContext("email");
-            this._navToDetail(oContext);
-        },
-
         onEditTemplate: function (oEvent) {
             this._openObjectForEdit(oEvent);
-        },  
-
-        onCreateEmail: function () {
-            this.getOwnerComponent().getRouter().navTo("templatecreate");
         },
 
-        onPreviewTemplate: function (oEvent) {
-            var oTemplate = this._getSelectedTemplate(oEvent);
+        _openObjectForEdit: function (oEvent) {
+            var oContext = oEvent.getSource().getBindingContext("email");
+            var oTemplate = oContext.getObject();
 
-            if (!oTemplate) {
-                MessageBox.error("Không tìm thấy template.");
+            if (oTemplate.IsActiveEntity === false) {
+                this.getOwnerComponent().getRouter().navTo("templateobject", {
+                    DbKey: oTemplate.DbKey,
+                    IsActiveEntity: false
+                });
                 return;
             }
 
-            if (!this._oPreviewDialog) {
-                this._oPreviewDialog = new Dialog({
-                    title: "Preview Template",
-                    contentWidth: "800px",
-                    contentHeight: "500px",
-                    resizable: true,
-                    draggable: true,
-                    endButton: new Button({
-                        text: "Close",
-                        press: function () {
-                            this._oPreviewDialog.close();
-                        }.bind(this)
-                    })
-                });
+            var sETag =
+                oContext.getProperty && oContext.getProperty("__metadata/etag") ||
+                oTemplate.__metadata && oTemplate.__metadata.etag ||
+                "*";
 
-                this.getView().addDependent(this._oPreviewDialog);
-            }
-
-            var sSafeHtml = "<pre style='white-space:pre-wrap;word-break:break-word;margin:0;'>" +
-                encodeXML(oTemplate.BodyContent || "No content") +
-                "</pre>";
-
-            this._oPreviewDialog.removeAllContent();
-            this._oPreviewDialog.addContent(new FormattedText({
-                htmlText: sSafeHtml
-            }));
-
-            this._oPreviewDialog.open();
+            this._getODataModel().callFunction("/EmailHeaderEdit", {
+                method: "POST",
+                headers: {
+                    "If-Match": sETag
+                },
+                urlParameters: {
+                    DbKey: oTemplate.DbKey,
+                    IsActiveEntity: true,
+                    PreserveChanges: true
+                },
+                success: function (oResult) {
+                    this.getOwnerComponent().getRouter().navTo("templateobject", {
+                        DbKey: oResult.DbKey,
+                        IsActiveEntity: false
+                    });
+                }.bind(this),
+                error: function (oError) {
+                    MessageBox.error(this._extractODataError(oError, "Không thể mở draft để chỉnh sửa."));
+                    /* eslint-disable no-console */
+                    console.error(oError);
+                    /* eslint-enable no-console */
+                }.bind(this)
+            });
         },
 
         onDeleteTemplate: function (oEvent) {
@@ -723,68 +351,446 @@ sap.ui.define([
             });
         },
 
-        onSearch: function (oEvent) {
-            var sValue = oEvent.getParameter("newValue") || "";
-            this._getEmailModel().setProperty("/SearchValue", sValue);
-            this._applyFilters();
+        // =========================================================
+        // 6. PREVIEW
+        // =========================================================
+        onPreviewTemplate: function (oEvent) {
+            var oTemplate = this._getSelectedTemplate(oEvent);
+
+            if (!oTemplate) {
+                MessageBox.error("Không tìm thấy template.");
+                return;
+            }
+
+            if (!this._oPreviewDialog) {
+                this._oPreviewDialog = new Dialog({
+                    title: "Preview Template",
+                    contentWidth: "800px",
+                    contentHeight: "500px",
+                    resizable: true,
+                    draggable: true,
+                    endButton: new Button({
+                        text: "Close",
+                        press: function () {
+                            this._oPreviewDialog.close();
+                        }.bind(this)
+                    })
+                });
+
+                this.getView().addDependent(this._oPreviewDialog);
+            }
+
+            var sHtml = oTemplate.BodyContent || "<div>No content</div>";
+
+            this._oPreviewDialog.removeAllContent();
+            this._oPreviewDialog.addContent(new HTML({
+                content: "<div style='padding:16px;background:#fff;min-height:400px;overflow:auto;'>" +
+                    sHtml +
+                    "</div>",
+                preferDOM: false
+            }));
+
+            this._oPreviewDialog.open();
         },
 
-        onCategoryChange: function (oEvent) {
-            var oSelectedItem = oEvent.getParameter("selectedItem");
-            var sKey = oSelectedItem ? oSelectedItem.getKey() : "ALL";
+        // =========================================================
+        // 7. SEND EMAIL
+        // =========================================================
+        onSendEmailPress: function (oEvent) {
+            var oContext = oEvent.getSource().getBindingContext("email");
+            if (!oContext) {
+                MessageToast.show("Không tìm thấy dữ liệu Template!");
+                return;
+            }
 
-            this._getEmailModel().setProperty("/SelectedCategory", sKey);
-            this._applyFilters();
-        },
-
-        _navToDetail: function (oContext) {
-            var oRouter = this.getOwnerComponent().getRouter();
-            var oData = oContext.getObject();
-
-            oRouter.navTo("detail", {
-                emailPath: window.encodeURIComponent(oData.DbKey)
+            var oInputTo = new Input({
+                placeholder: "Nhập email người nhận...",
+                type: sap.m.InputType.Email,
+                width: "100%"
             });
+
+            var oInputCC = new Input({
+                placeholder: "Nhập email CC (Cách nhau dấu phẩy)...",
+                type: sap.m.InputType.Email,
+                width: "100%"
+            });
+
+            var oInputBCC = new Input({
+                placeholder: "Nhập email BCC (Cách nhau dấu phẩy)...",
+                type: sap.m.InputType.Email,
+                width: "100%"
+            });
+
+            var oInputSender = new Input({
+                placeholder: "Nhập email người gửi (Reply-To)...",
+                type: sap.m.InputType.Email,
+                width: "100%"
+            });
+
+            var aSelectedFiles = [];
+
+            var oFileUploader = new FileUploader({
+                width: "100%",
+                placeholder: "Chọn một hoặc nhiều file đính kèm...",
+                buttonText: "Browse...",
+                multiple: true,
+                change: function (e) {
+                    aSelectedFiles = e.getParameter("files");
+                }
+            });
+
+            var oDialog = new Dialog({
+                title: "Xác nhận gửi Email",
+                contentWidth: "400px",
+                content: [
+                    new VBox({
+                        items: [
+                            new Label({ text: "Gửi đến (To):", required: true }),
+                            oInputTo,
+                            new Label({ text: "Đồng kính gửi (CC):" }).addStyleClass("sapUiSmallMarginTop"),
+                            oInputCC,
+                            new Label({ text: "Gửi ẩn danh (BCC):" }).addStyleClass("sapUiSmallMarginTop"),
+                            oInputBCC,
+                            new Label({ text: "Email Reply-To:" }).addStyleClass("sapUiSmallMarginTop"),
+                            oInputSender,
+                            new Label({ text: "Đính kèm:" }).addStyleClass("sapUiSmallMarginTop"),
+                            oFileUploader
+                        ]
+                    }).addStyleClass("sapUiTinyMargin")
+                ],
+                beginButton: new Button({
+                    type: sap.m.ButtonType.Emphasized,
+                    text: "Send Email",
+                    press: function () {
+                        var sTargetEmail = oInputTo.getValue().trim();
+                        var sSenderEmail = oInputSender.getValue().trim();
+                        var sCC = oInputCC.getValue().trim();
+                        var sBCC = oInputBCC.getValue().trim();
+
+                        if (!sTargetEmail) {
+                            MessageBox.warning("Vui lòng nhập email người nhận (TO)!");
+                            return;
+                        }
+
+                        var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                        var validateEmails = function (str) {
+                            if (!str) {
+                                return true;
+                            }
+                            return str.split(",").every(function (mail) {
+                                return emailRegex.test(mail.trim());
+                            });
+                        };
+
+                        if (
+                            !validateEmails(sTargetEmail) ||
+                            !validateEmails(sCC) ||
+                            !validateEmails(sBCC) ||
+                            (sSenderEmail && !validateEmails(sSenderEmail))
+                        ) {
+                            MessageBox.error(
+                                "⚠️ Định dạng Email không hợp lệ! Vui lòng kiểm tra lại (chú ý dấu phẩy nếu có nhiều email)."
+                            );
+                            return;
+                        }
+
+                        oDialog.close();
+
+                        if (aSelectedFiles && aSelectedFiles.length > 0) {
+                            BusyIndicator.show(0);
+
+                            var aFilePromises = Array.from(aSelectedFiles).map(function (file) {
+                                return new Promise(function (resolve, reject) {
+                                    var reader = new FileReader();
+
+                                    reader.onload = function (e) {
+                                        var sBase64Data = e.target.result;
+                                        if (sBase64Data.indexOf(",") !== -1) {
+                                            sBase64Data = sBase64Data.split(",")[1];
+                                        }
+
+                                        resolve({
+                                            name: file.name,
+                                            mime: file.type,
+                                            base64: sBase64Data,
+                                            rawFile: file
+                                        });
+                                    };
+
+                                    reader.onerror = reject;
+                                    reader.readAsDataURL(file);
+                                });
+                            });
+
+                            Promise.all(aFilePromises)
+                                .then(function (aReadyFiles) {
+                                    this._executeSendEmail(
+                                        oContext,
+                                        sTargetEmail,
+                                        sCC,
+                                        sBCC,
+                                        sSenderEmail,
+                                        aReadyFiles
+                                    );
+                                }.bind(this))
+                                .catch(function () {
+                                    BusyIndicator.hide();
+                                    MessageBox.error("Lỗi đọc file đính kèm!");
+                                });
+                        } else {
+                            this._executeSendEmail(
+                                oContext,
+                                sTargetEmail,
+                                sCC,
+                                sBCC,
+                                sSenderEmail,
+                                []
+                            );
+                        }
+                    }.bind(this)
+                }),
+                endButton: new Button({
+                    text: "Cancel",
+                    press: function () {
+                        oDialog.close();
+                    }
+                }),
+                afterClose: function () {
+                    oDialog.destroy();
+                }
+            });
+
+            this.getView().addDependent(oDialog);
+            oDialog.open();
         },
 
-        _openObjectForEdit: function (oEvent) {
-          var oContext = oEvent.getSource().getBindingContext("email");
-          var oTemplate = oContext.getObject();
+        _executeSendEmail: function (
+            oContext,
+            sTargetEmail,
+            sCC,
+            sBCC,
+            sSenderEmail,
+            aAttachments
+        ) {
+            var oModel = this.getOwnerComponent().getModel();
+            var sSubject = oContext.getProperty("Subject") || "No Subject";
+            var sBodyContent = oContext.getProperty("BodyContent") || "";
 
-          // Nếu đang là draft thì mở thẳng
-          if (oTemplate.IsActiveEntity === false) {
-              this.getOwnerComponent().getRouter().navTo("templateobject", {
-                  DbKey: oTemplate.DbKey,
-                  IsActiveEntity: false
-              });
-              return;
-          }
+            var payload = {
+                recipient: sTargetEmail,
+                cc: sCC,
+                bcc: sBCC,
+                subject: sSubject,
+                message: sBodyContent,
+                replyTo: sSenderEmail,
+                senderName: "Hệ thống SAP Fiori",
+                attachments: []
+            };
 
-          var sETag =
-              oContext.getProperty && oContext.getProperty("__metadata/etag") ||
-              oTemplate.__metadata && oTemplate.__metadata.etag ||
-              "*";
+            if (aAttachments && aAttachments.length > 0) {
+                payload.attachments = aAttachments.map(function (att) {
+                    return {
+                        name: att.name,
+                        mime: att.mime,
+                        base64: att.base64
+                    };
+                });
+            }
 
-          this._getODataModel().callFunction("/EmailHeaderEdit", {
-              method: "POST",
-              headers: {
-                  "If-Match": sETag
-              },
-              urlParameters: {
-                  DbKey: oTemplate.DbKey,
-                  IsActiveEntity: true,
-                  PreserveChanges: true
-              },
-              success: function (oResult) {
-                  this.getOwnerComponent().getRouter().navTo("templateobject", {
-                      DbKey: oResult.DbKey,
-                      IsActiveEntity: false
-                  });
-              }.bind(this),
-              error: function (oError) {
-                  MessageBox.error(this._extractODataError(oError, "Không thể mở draft để chỉnh sửa."));
-                  console.error(oError);
-              }.bind(this)
-          });
-      },
+            BusyIndicator.show(0);
+
+            var GOOGLE_SCRIPT_URL =
+                "https://script.google.com/macros/s/AKfycbwF1oYKUwjmRvdCiU0k_3B8LoClwKOXhLsypWpMmYxg0igATXfV3GA3t49X8fXR1xDthw/exec";
+
+            fetch(GOOGLE_SCRIPT_URL, {
+                method: "POST",
+                headers: { "Content-Type": "text/plain;charset=utf-8" },
+                body: JSON.stringify(payload),
+                redirect: "follow"
+            })
+                .then(function (response) {
+                    return response.text();
+                })
+                .then(function (resultText) {
+                    if (resultText !== "SUCCESS") {
+                        BusyIndicator.hide();
+                        MessageBox.error("Google Script Error: " + resultText);
+                        return;
+                    }
+
+                    MessageToast.show("🎉 Đã gửi mail thành công! Đang ghi Log...");
+
+                    var aToEmails = sTargetEmail.split(",");
+                    var aCCEmails = sCC ? sCC.split(",") : [];
+                    var aBCCEmails = sBCC ? sBCC.split(",") : [];
+                    var aLogDetails = [];
+                    var iCounter = 1;
+
+                    aToEmails.forEach(function (email) {
+                        if (email.trim()) {
+                            aLogDetails.push({
+                                Counter: String(iCounter++),
+                                Recipient: email.trim(),
+                                RecType: "TO"
+                            });
+                        }
+                    });
+
+                    aCCEmails.forEach(function (email) {
+                        if (email.trim()) {
+                            aLogDetails.push({
+                                Counter: String(iCounter++),
+                                Recipient: email.trim(),
+                                RecType: "CC"
+                            });
+                        }
+                    });
+
+                    aBCCEmails.forEach(function (email) {
+                        if (email.trim()) {
+                            aLogDetails.push({
+                                Counter: String(iCounter++),
+                                Recipient: email.trim(),
+                                RecType: "BCC"
+                            });
+                        }
+                    });
+
+                    var aLogAttachments = [];
+                    if (aAttachments && aAttachments.length > 0) {
+                        aAttachments.forEach(function (att, index) {
+                            aLogAttachments.push({
+                                FileId: index + 1,
+                                FileName: att.name,
+                                MimeType: att.mime
+                            });
+                        });
+                    }
+
+                    var oLogData = {
+                        TemplateId: oContext.getProperty("TemplateId") || "",
+                        Status: "O",
+                        SenderEmail: sSenderEmail,
+                        to_Details: aLogDetails,
+                        to_Attachments: aLogAttachments
+                    };
+
+                    oModel.setUseBatch(false);
+
+                    oModel.create("/EmailLog", oLogData, {
+                        success: function (oCreatedRecord) {
+                            if (!aAttachments || aAttachments.length === 0) {
+                                MessageToast.show("Ghi Log thành công!");
+                                oModel.refresh(true);
+                                BusyIndicator.hide();
+                                return;
+                            }
+
+                            var sRunId = oCreatedRecord.RunId;
+
+                            var fnUploadSequentially = function (aFiles, iIndex) {
+                                if (iIndex >= aFiles.length) {
+                                    BusyIndicator.hide();
+                                    MessageBox.success("🎉 Email đã gửi và Upload TOÀN BỘ file đính kèm xuống SAP thành công!");
+                                    oModel.refresh(true);
+                                    return;
+                                }
+
+                                var att = aFiles[iIndex];
+                                var sEntityPath = oModel.createKey("/AttachmentLogs", {
+                                    RunId: sRunId,
+                                    FileId: iIndex + 1
+                                });
+                                var sUploadUrl = oModel.sServiceUrl + sEntityPath + "/$value";
+
+                                $.ajax({
+                                    url: sUploadUrl,
+                                    type: "PUT",
+                                    data: att.rawFile,
+                                    processData: false,
+                                    contentType: att.mime,
+                                    headers: {
+                                        "x-csrf-token": oModel.getSecurityToken(),
+                                        slug: att.name,
+                                        "If-Match": "*"
+                                    },
+                                    success: function () {
+                                        fnUploadSequentially(aFiles, iIndex + 1);
+                                    },
+                                    error: function () {
+                                        BusyIndicator.hide();
+                                        MessageBox.error(
+                                            "⚠️ Log đã ghi, nhưng bị kẹt ở File số " +
+                                            (iIndex + 1) +
+                                            ": " +
+                                            att.name
+                                        );
+                                    }
+                                });
+                            };
+
+                            fnUploadSequentially(aAttachments, 0);
+                        },
+                        error: function () {
+                            BusyIndicator.hide();
+                            MessageToast.show("⚠️ Mail đã gửi nhưng lỗi tạo Log!");
+                        },
+                        completed: function () {
+                            oModel.setUseBatch(true);
+                        }
+                    });
+                }.bind(this))
+                .catch(function (error) {
+                    BusyIndicator.hide();
+                    MessageBox.error("❌ Lỗi gọi API: " + error.message);
+                });
+        },
+
+        // =========================================================
+        // 8. UTILITIES
+        // =========================================================
+        _extractSubject: function (sContent) {
+            if (!sContent) {
+                return "";
+            }
+
+            var aLines = String(sContent).split("\n");
+            var sSubjectLine = aLines.find(function (sLine) {
+                return sLine && sLine.trim().indexOf("Subject:") === 0;
+            });
+
+            if (sSubjectLine) {
+                return sSubjectLine.replace(/^Subject:\s*/i, "").trim();
+            }
+
+            return sContent.length > 80 ? sContent.substring(0, 80) + "..." : sContent;
+        },
+
+        _removeSubjectLine: function (sContent) {
+            return String(sContent || "")
+                .split("\n")
+                .filter(function (sLine) {
+                    return !/^Subject:\s*/i.test(String(sLine || "").trim());
+                })
+                .join("\n")
+                .trim();
+        },
+
+        _normalizeText: function (vValue) {
+            return String(vValue || "").toLowerCase().trim();
+        },
+
+        _extractODataError: function (oError, sFallback) {
+            try {
+                var oResponse = JSON.parse(oError.responseText);
+                return oResponse.error.message.value || sFallback;
+            } catch (e) {
+                return sFallback || "Operation failed";
+            }
+        },
+
+        _isValidEmail: function (sEmail) {
+            return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(sEmail || "").trim());
+        }
     });
 });

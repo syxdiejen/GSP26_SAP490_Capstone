@@ -2,12 +2,21 @@
     controllerName="zemail.template.app.controller.template.Detail"
     xmlns="sap.m"
     xmlns:mvc="sap.ui.core.mvc"
-    xmlns:core="sap.ui.core">
+    xmlns:core="sap.ui.core"
+    xmlns:rte="sap.ui.richtexteditor">
 
     <Page
         title="Template Preview"
         showNavButton="true"
         navButtonPress=".onNavBack">
+
+        <headerContent>
+            <Button
+                text="Send Email"
+                type="Emphasized"
+                icon="sap-icon://email"
+                press=".onSendEmailPress" />
+        </headerContent>
 
         <content>
             <VBox class="detailPageWrapper sapUiSmallMargin">
@@ -38,11 +47,11 @@
                                 <ToolbarSpacer />
                                 <ObjectStatus
                                     text="{
-                                        path: 'preview>/isActive',
+                                        path: 'preview>/IsActive',
                                         formatter: '.formatter.statusText'
                                     }"
                                     state="{
-                                        path: 'preview>/isActive',
+                                        path: 'preview>/IsActive',
                                         formatter: '.formatter.statusState'
                                     }" />
                             </OverflowToolbar>
@@ -53,42 +62,33 @@
 
                                 <HBox class="emailMetaRow sapUiTinyMarginBottom" wrap="NoWrap">
                                     <Text text="From:" class="emailMetaLabel" />
-                                    <Text text="{preview>/fields/from}" class="emailMetaValue" />
+                                    <Text text="{preview>/SenderEmail}" class="emailMetaValue" />
                                 </HBox>
 
                                 <HBox class="emailMetaRow sapUiTinyMarginBottom" wrap="NoWrap">
                                     <Text text="To:" class="emailMetaLabel" />
-                                    <Text text="{preview>/fields/to}" class="emailMetaValue" />
-                                </HBox>
-
-                                <HBox
-                                    class="emailMetaRow sapUiTinyMarginBottom"
-                                    wrap="NoWrap"
-                                    visible="{= !!${preview>/fields/cc} }">
-                                    <Text text="CC:" class="emailMetaLabel" />
-                                    <Text text="{preview>/fields/cc}" class="emailMetaValue" />
-                                </HBox>
-
-                                <HBox
-                                    class="emailMetaRow sapUiTinyMarginBottom"
-                                    wrap="NoWrap"
-                                    visible="{= !!${preview>/fields/bcc} }">
-                                    <Text text="BCC:" class="emailMetaLabel" />
-                                    <Text text="{preview>/fields/bcc}" class="emailMetaValue" />
+                                    <Text text="" class="emailMetaValue" />
                                 </HBox>
 
                                 <HBox class="emailMetaRow" wrap="NoWrap">
                                     <Text text="Subject:" class="emailMetaLabel" />
-                                    <Text text="{preview>/renderedSubject}" class="emailMetaValue emailMetaValueBold" />
+                                    <Text text="{preview>/Subject}" class="emailMetaValue emailMetaValueBold" />
                                 </HBox>
 
                             </VBox>
 
                             <VBox class="emailBody sapUiSmallMargin">
-                                <core:HTML
-                                    id="htmlPreview"
-                                    content="{preview>/renderedHtml}"
-                                    sanitizeContent="true" />
+                                <rte:RichTextEditor
+                                    id="htmlEditor"
+                                    width="100%"
+                                    height="500px"
+                                    value="{preview>/BodyContent}"
+                                    editable="true"
+                                    showGroupFont="true"
+                                    showGroupLink="true"
+                                    showGroupInsert="true"
+                                    showGroupStructure="true"
+                                    showGroupTextAlign="true" />
                             </VBox>
                         </content>
                     </Panel>

@@ -104,8 +104,6 @@
                                 change=".onToggleActive" />
 
                             <HBox justifyContent="End">
-                                <Button icon="sap-icon://email" tooltip="Send Email" type="Transparent" press=".onSendEmailPress"
-                                />
                                 <Button icon="sap-icon://edit" type="Transparent" press=".onEditTemplate" />
                                 <Button icon="sap-icon://show" type="Transparent" press=".onPreviewTemplate" />
                                 <Button icon="sap-icon://delete" type="Transparent" press=".onDeleteTemplate" />

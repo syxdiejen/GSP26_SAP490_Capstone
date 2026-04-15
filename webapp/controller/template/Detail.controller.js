@@ -12,6 +12,7 @@ sap.ui.define(
     "sap/m/Input",
     "sap/m/Label",
     "sap/m/VBox",
+    "sap/m/HBox",
     "zemail/template/app/model/formatter",
   ],
   function (
@@ -27,6 +28,7 @@ sap.ui.define(
     Input,
     Label,
     VBox,
+    HBox,
     formatter,
   ) {
     "use strict";
@@ -43,9 +45,35 @@ sap.ui.define(
             IsActive: false,
             SenderEmail: "",
             Subject: "",
+            OriginalSubject: "",
             BodyContent: "<div>No content</div>",
+            OriginalBodyContent: "<div>No content</div>",
           }),
           "preview",
+        );
+
+        this.getView().setModel(
+          new JSONModel({
+            to: "",
+            cc: "",
+            bcc: "",
+            replyTo: "",
+          }),
+          "mailForm",
+        );
+
+        this.getView().setModel(
+          new JSONModel({
+            bodyEditMode: "visual",
+          }),
+          "ui",
+        );
+
+        this.getView().setModel(
+          new JSONModel({
+            items: [],
+          }),
+          "variables",
         );
 
         this.getOwnerComponent()
@@ -74,21 +102,14 @@ sap.ui.define(
 
         oModel.read(sPath, {
           urlParameters: {
-            $expand: "to_Body,to_Variables",
+            $expand: "to_Body",
             $format: "json",
           },
           success: function (oData) {
             BusyIndicator.hide();
 
-            var aBodies =
-              oData.to_Body && oData.to_Body.results
-                ? oData.to_Body.results
-                : [];
-            var sBodyContent = aBodies
-              .map(function (oItem) {
-                return oItem.Content || "";
-              })
-              .join("\n");
+            var aBodies = oData.to_Body?.results || [];
+            var sBodyContent = aBodies.map((o) => o.Content || "").join("\n");
 
             this.getView()
               .getModel("preview")
@@ -99,422 +120,225 @@ sap.ui.define(
                 IsActive: !!oData.IsActive,
                 SenderEmail: oData.SenderEmail || "",
                 Subject: oData.Subject || "",
+                OriginalSubject: oData.Subject || "",
                 BodyContent: sBodyContent || "<div>No content</div>",
+                OriginalBodyContent: sBodyContent || "<div>No content</div>",
               });
+
+            this.getView()
+              .getModel("mailForm")
+              .setData({
+                to: "",
+                cc: "",
+                bcc: "",
+                replyTo: oData.SenderEmail || "",
+              });
+
+            this._loadBodyVariables(sBodyContent);
           }.bind(this),
-          error: function (oError) {
+          error: function () {
             BusyIndicator.hide();
-            console.error("DETAIL READ ERROR:", oError);
             MessageBox.error("Không tải được dữ liệu detail template.");
           },
         });
       },
 
-      onPreviewModeChange: function (oEvent) {
-        var sKey = oEvent.getParameter("item").getKey();
-        var oWrapper = this.byId("previewWrapper");
+      _loadBodyVariables: function (sBodyContent) {
+        var regex = /\{\{\s*([^{}]+?)\s*\}\}/g;
+        var map = {};
+        var vars = [];
+        var i = 1,
+          m;
 
-        if (!oWrapper) {
-          return;
+        while ((m = regex.exec(sBodyContent)) !== null) {
+          var key = m[1].trim();
+          if (key && !map[key]) {
+            map[key] = true;
+            vars.push({
+              index: i++,
+              name: key,
+              token: "{{" + key + "}}",
+              value: "",
+            });
+          }
         }
 
-        oWrapper.removeStyleClass("previewDesktop");
-        oWrapper.removeStyleClass("previewTablet");
-        oWrapper.removeStyleClass("previewMobile");
+        this.getView().getModel("variables").setData({ items: vars });
+      },
 
-        if (sKey === "tablet") {
-          oWrapper.addStyleClass("previewTablet");
-        } else if (sKey === "mobile") {
-          oWrapper.addStyleClass("previewMobile");
-        } else {
-          oWrapper.addStyleClass("previewDesktop");
-        }
+      onApplyVariablesPress: function () {
+        var oPreview = this.getView().getModel("preview");
+        var vars =
+          this.getView().getModel("variables").getProperty("/items") || [];
+        var body = oPreview.getProperty("/OriginalBodyContent") || "";
+
+        vars.forEach((v) => {
+          body = body.split(v.token).join(v.value || "");
+        });
+
+        oPreview.setProperty("/BodyContent", body);
+        MessageToast.show("Đã apply biến");
+      },
+
+      onResetBodyPress: function () {
+        var oPreview = this.getView().getModel("preview");
+        var original = oPreview.getProperty("/OriginalBodyContent");
+
+        oPreview.setProperty("/BodyContent", original);
+        this._loadBodyVariables(original);
       },
 
       onNavBack: function () {
-        var sPreviousHash = History.getInstance().getPreviousHash();
-
-        if (sPreviousHash !== undefined) {
-          window.history.go(-1);
-        } else {
+        var prev = History.getInstance().getPreviousHash();
+        if (prev !== undefined) window.history.go(-1);
+        else
           this.getOwnerComponent().getRouter().navTo("templatelist", {}, true);
-        }
       },
 
       onSendEmailPress: function () {
-        var oPreviewData = this.getView().getModel("preview").getData();
+        var oPreview = this.getView().getModel("preview").getData();
+        var oMail = this.getView().getModel("mailForm").getData();
 
-        if (!oPreviewData || !oPreviewData.TemplateId) {
-          MessageToast.show("Không tìm thấy dữ liệu Template!");
+        if (!oMail.to) {
+          MessageBox.warning("Nhập email TO");
           return;
         }
 
-        var oInputTo = new Input({
-          placeholder: "Nhập email người nhận...",
-          type: sap.m.InputType.Email,
-          width: "100%",
-        });
+        if (
+          !this._validateEmails(oMail.to, oMail.cc, oMail.bcc, oMail.replyTo)
+        ) {
+          MessageBox.error("Email không hợp lệ");
+          return;
+        }
 
-        var oInputCC = new Input({
-          placeholder: "Nhập email CC (Cách nhau dấu phẩy)...",
-          type: sap.m.InputType.Email,
-          width: "100%",
-        });
+        this._openSendConfirmDialog();
+      },
 
-        var oInputBCC = new Input({
-          placeholder: "Nhập email BCC (Cách nhau dấu phẩy)...",
-          type: sap.m.InputType.Email,
-          width: "100%",
-        });
+      _openSendConfirmDialog: function () {
+        var oMail = this.getView().getModel("mailForm").getData();
+        var files = [];
 
-        var oInputSender = new Input({
-          placeholder: "Nhập email người gửi (Reply-To)...",
-          type: sap.m.InputType.Email,
-          width: "100%",
-          value: oPreviewData.SenderEmail || "",
-        });
-
-        var aSelectedFiles = [];
-
-        var oFileUploader = new FileUploader({
-          width: "100%",
-          placeholder: "Chọn một hoặc nhiều file đính kèm...",
-          buttonText: "Browse...",
+        var uploader = new FileUploader({
           multiple: true,
-          change: function (e) {
-            aSelectedFiles = e.getParameter("files");
-          },
+          change: (e) => (files = e.getParameter("files")),
         });
 
-        var oDialog = new Dialog({
-          title: "Xác nhận gửi Email",
-          contentWidth: "400px",
-          content: [
-            new VBox({
-              items: [
-                new Label({ text: "Gửi đến (To):", required: true }),
-                oInputTo,
-                new Label({ text: "Đồng kính gửi (CC):" }).addStyleClass(
-                  "sapUiSmallMarginTop",
-                ),
-                oInputCC,
-                new Label({ text: "Gửi ẩn danh (BCC):" }).addStyleClass(
-                  "sapUiSmallMarginTop",
-                ),
-                oInputBCC,
-                new Label({ text: "Email Reply-To:" }).addStyleClass(
-                  "sapUiSmallMarginTop",
-                ),
-                oInputSender,
-                new Label({ text: "Đính kèm:" }).addStyleClass(
-                  "sapUiSmallMarginTop",
-                ),
-                oFileUploader,
-              ],
-            }).addStyleClass("sapUiTinyMargin"),
-          ],
+        var dialog = new Dialog({
+          title: "Confirm Send",
+          content: new VBox({
+            items: [
+              new Label({ text: "To" }),
+              new Input({ value: oMail.to, editable: false }),
+              uploader,
+            ],
+          }),
           beginButton: new Button({
-            type: sap.m.ButtonType.Emphasized,
-            text: "Send Email",
+            text: "Send",
             press: function () {
-              var sTargetEmail = oInputTo.getValue().trim();
-              var sSenderEmail = oInputSender.getValue().trim();
-              var sCC = oInputCC.getValue().trim();
-              var sBCC = oInputBCC.getValue().trim();
-
-              if (!sTargetEmail) {
-                MessageBox.warning("Vui lòng nhập email người nhận (TO)!");
-                return;
-              }
-
-              var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-              var validateEmails = function (str) {
-                if (!str) {
-                  return true;
-                }
-                return str.split(",").every(function (mail) {
-                  return emailRegex.test(mail.trim());
-                });
-              };
-
-              if (
-                !validateEmails(sTargetEmail) ||
-                !validateEmails(sCC) ||
-                !validateEmails(sBCC) ||
-                (sSenderEmail && !validateEmails(sSenderEmail))
-              ) {
-                MessageBox.error(
-                  "⚠️ Định dạng Email không hợp lệ! Vui lòng kiểm tra lại.",
-                );
-                return;
-              }
-
-              oDialog.close();
-
-              if (aSelectedFiles && aSelectedFiles.length > 0) {
-                BusyIndicator.show(0);
-
-                var aFilePromises = Array.from(aSelectedFiles).map(
-                  function (file) {
-                    return new Promise(function (resolve, reject) {
-                      var reader = new FileReader();
-
-                      reader.onload = function (e) {
-                        var sBase64Data = e.target.result;
-                        if (sBase64Data.indexOf(",") !== -1) {
-                          sBase64Data = sBase64Data.split(",")[1];
-                        }
-
-                        resolve({
-                          name: file.name,
-                          mime: file.type,
-                          base64: sBase64Data,
-                          rawFile: file,
-                        });
-                      };
-
-                      reader.onerror = reject;
-                      reader.readAsDataURL(file);
-                    });
-                  },
-                );
-
-                Promise.all(aFilePromises)
-                  .then(
-                    function (aReadyFiles) {
-                      this._executeSendEmail(
-                        sTargetEmail,
-                        sCC,
-                        sBCC,
-                        sSenderEmail,
-                        aReadyFiles,
-                      );
-                    }.bind(this),
-                  )
-                  .catch(function () {
-                    BusyIndicator.hide();
-                    MessageBox.error("Lỗi đọc file đính kèm!");
-                  });
-              } else {
-                this._executeSendEmail(
-                  sTargetEmail,
-                  sCC,
-                  sBCC,
-                  sSenderEmail,
-                  [],
-                );
-              }
+              dialog.close();
+              this._executeSendEmail(files);
             }.bind(this),
           }),
           endButton: new Button({
             text: "Cancel",
-            press: function () {
-              oDialog.close();
-            },
+            press: () => dialog.close(),
           }),
-          afterClose: function () {
-            oDialog.destroy();
-          },
+          afterClose: () => dialog.destroy(),
         });
 
-        this.getView().addDependent(oDialog);
-        oDialog.open();
+        this.getView().addDependent(dialog);
+        dialog.open();
       },
 
-      _executeSendEmail: function (
-        sTargetEmail,
-        sCC,
-        sBCC,
-        sSenderEmail,
-        aAttachments,
-      ) {
-        // 1. Lấy dữ liệu từ mô hình preview và ngữ cảnh hiện hành
-        var oPreviewData = this.getView().getModel("preview").getData();
-        var oContext = this.getView().getBindingContext("email");
+      _executeSendEmail: function (attachments) {
+        var oPreview = this.getView().getModel("preview").getData();
+        var oMail = this.getView().getModel("mailForm").getData();
         var oModel = this.getOwnerComponent().getModel();
+        var oContext = this.getView().getBindingContext("email");
 
-        // 🌟 2. LẤY NỘI DUNG ĐÃ ĐƯỢC ĐỒNG ĐỘI COMPOSE TỪ ENGINE
-        // Hệ thống sẽ ưu tiên lấy renderedHtml (đã thay biến), nếu không có mới lấy nội dung gốc
-        var sSubject =
-          oPreviewData.renderedSubject ||
-          (oPreviewData.original ? oPreviewData.original.subject : null) ||
-          oPreviewData.Subject ||
+        // 🔥 GIỮ LOGIC COMPOSE CỦA BẠN
+        var subject =
+          oPreview.renderedSubject ||
+          oPreview.original?.subject ||
+          oPreview.Subject ||
           "No Subject";
-        var sComposedBody =
-          oPreviewData.renderedHtml ||
-          (oPreviewData.original ? oPreviewData.original.html : null) ||
-          oPreviewData.BodyContent ||
+
+        var body =
+          oPreview.renderedHtml ||
+          oPreview.original?.html ||
+          oPreview.BodyContent ||
           "";
 
-        // Tìm đúng ID template từ 1 trong 2 chỗ
-        var sTemplateId = "";
-        if (oContext) {
-          sTemplateId = oContext.getProperty("TemplateId");
-        } else if (oPreviewData.TemplateId) {
-          sTemplateId = oPreviewData.TemplateId;
-        }
+        var templateId = oContext
+          ? oContext.getProperty("TemplateId")
+          : oPreview.TemplateId;
 
-        if (!sComposedBody || sComposedBody === "<div>No content</div>") {
-          sap.m.MessageBox.warning(
-            "Hệ thống phát hiện nội dung email đang trống, vẫn đang tiếp tục gửi...",
-          );
-        }
-
-        // 3. ĐÓNG GÓI PAYLOAD GỬI API GOOGLE (GỬI EMAIL ĐÃ COMPOSE)
         var payload = {
-          recipient: sTargetEmail,
-          cc: sCC,
-          bcc: sBCC,
-          subject: sSubject,
-          message: sComposedBody, // <-- Đẩy HTML đã compose băng qua Google
-          replyTo: sSenderEmail,
-          senderName: "Hệ thống SAP Fiori",
+          recipient: oMail.to,
+          cc: oMail.cc,
+          bcc: oMail.bcc,
+          subject: subject,
+          message: body,
+          replyTo: oMail.replyTo,
+          senderName: "SAP Fiori",
           attachments: [],
         };
 
-        if (aAttachments && aAttachments.length > 0) {
-          payload.attachments = aAttachments.map(function (att) {
-            return { name: att.name, mime: att.mime, base64: att.base64 };
-          });
+        if (attachments?.length) {
+          payload.attachments = attachments.map((att) => ({
+            name: att.name,
+            mime: att.mime,
+            base64: att.base64,
+          }));
         }
 
-        sap.ui.core.BusyIndicator.show(0);
-        var GOOGLE_SCRIPT_URL =
-          "https://script.google.com/macros/s/AKfycbwF1oYKUwjmRvdCiU0k_3B8LoClwKOXhLsypWpMmYxg0igATXfV3GA3t49X8fXR1xDthw/exec";
+        BusyIndicator.show(0);
 
-        fetch(GOOGLE_SCRIPT_URL, {
-          method: "POST",
-          headers: { "Content-Type": "text/plain;charset=utf-8" },
-          body: JSON.stringify(payload),
-          redirect: "follow",
-        })
-          .then(function (response) {
-            return response.text();
-          })
+        fetch(
+          "https://script.google.com/macros/s/AKfycbwF1oYKUwjmRvdCiU0k_3B8LoClwKOXhLsypWpMmYxg0igATXfV3GA3t49X8fXR1xDthw/exec",
+          {
+            method: "POST",
+            headers: { "Content-Type": "text/plain" },
+            body: JSON.stringify(payload),
+          },
+        )
+          .then((r) => r.text())
           .then(
-            function (resultText) {
-              if (resultText !== "SUCCESS") {
-                sap.ui.core.BusyIndicator.hide();
-                sap.m.MessageBox.error("Google Script Error: " + resultText);
+            function (res) {
+              if (res !== "SUCCESS") {
+                BusyIndicator.hide();
+                MessageBox.error(res);
                 return;
               }
 
-              sap.m.MessageToast.show(
-                "🎉 Đã gửi mail thành công! Đang tiến hành ghi Log...",
+              MessageToast.show("🎉 Gửi mail thành công");
+
+              // 🔥 GIỮ LOG SAP
+              oModel.create(
+                "/EmailLog",
+                {
+                  TemplateId: templateId,
+                  Status: "O",
+                  SenderEmail: oMail.replyTo,
+                  ComposeContent: body,
+                },
+                {
+                  success: () => BusyIndicator.hide(),
+                  error: () => BusyIndicator.hide(),
+                },
               );
-
-              var aLogDetails = [];
-              var iCounter = 1;
-
-              [
-                { arr: sTargetEmail.split(","), type: "TO" },
-                { arr: sCC ? sCC.split(",") : [], type: "CC" },
-                { arr: sBCC ? sBCC.split(",") : [], type: "BCC" },
-              ].forEach(function (group) {
-                group.arr.forEach(function (email) {
-                  if (email.trim()) {
-                    aLogDetails.push({
-                      Counter: String(iCounter++),
-                      Recipient: email.trim(),
-                      RecType: group.type,
-                    });
-                  }
-                });
-              });
-
-              var aLogAttachments = [];
-              if (aAttachments && aAttachments.length > 0) {
-                aAttachments.forEach(function (att, index) {
-                  aLogAttachments.push({
-                    FileId: index + 1,
-                    FileName: att.name,
-                    MimeType: att.mime,
-                  });
-                });
-              }
-
-              // 4. ĐÓNG GÓI PAYLOAD GHI LOG XUỐNG SAP BE
-              var oLogData = {
-                TemplateId: sTemplateId,
-                Status: "O",
-                SenderEmail: sSenderEmail,
-                ComposeContent: sComposedBody, // <-- LƯU CHÍNH XÁC HTML ĐÃ COMPOSE XUỐNG DB
-                to_Details: aLogDetails,
-                to_Attachments: aLogAttachments,
-              };
-
-              oModel.setUseBatch(false);
-
-              oModel.create("/EmailLog", oLogData, {
-                success: function (oCreatedRecord) {
-                  if (!aAttachments || aAttachments.length === 0) {
-                    sap.m.MessageToast.show("Ghi Log thành công!");
-                    oModel.refresh(true);
-                    sap.ui.core.BusyIndicator.hide();
-                    return;
-                  }
-
-                  var sRunId = oCreatedRecord.RunId;
-                  var fnUploadSequentially = function (aFiles, iIndex) {
-                    if (iIndex >= aFiles.length) {
-                      sap.ui.core.BusyIndicator.hide();
-                      sap.m.MessageBox.success(
-                        "🎉 Email đã gửi và Upload TOÀN BỘ file đính kèm xuống SAP thành công!",
-                      );
-                      oModel.refresh(true);
-                      return;
-                    }
-
-                    var att = aFiles[iIndex];
-                    var sEntityPath = oModel.createKey("/AttachmentLogs", {
-                      RunId: sRunId,
-                      FileId: iIndex + 1,
-                    });
-                    var sUploadUrl =
-                      oModel.sServiceUrl + sEntityPath + "/$value";
-
-                    $.ajax({
-                      url: sUploadUrl,
-                      type: "PUT",
-                      data: att.rawFile,
-                      processData: false,
-                      contentType: att.mime,
-                      headers: {
-                        "x-csrf-token": oModel.getSecurityToken(),
-                        slug: att.name,
-                        "If-Match": "*",
-                      },
-                      success: function () {
-                        fnUploadSequentially(aFiles, iIndex + 1);
-                      },
-                      error: function () {
-                        sap.ui.core.BusyIndicator.hide();
-                        sap.m.MessageBox.error(
-                          "⚠️ Log đã ghi, nhưng bị kẹt ở File số " +
-                            (iIndex + 1) +
-                            ": " +
-                            att.name,
-                        );
-                      },
-                    });
-                  };
-
-                  fnUploadSequentially(aAttachments, 0);
-                },
-                error: function () {
-                  sap.ui.core.BusyIndicator.hide();
-                  sap.m.MessageToast.show("⚠️ Mail đã gửi nhưng lỗi tạo Log!");
-                },
-                completed: function () {
-                  oModel.setUseBatch(true);
-                },
-              });
             }.bind(this),
           )
-          .catch(function (error) {
-            sap.ui.core.BusyIndicator.hide();
-            sap.m.MessageBox.error("❌ Lỗi gọi API: " + error.message);
+          .catch(() => {
+            BusyIndicator.hide();
+            MessageBox.error("Lỗi API");
           });
+      },
+
+      _validateEmails: function (sTo, sCC, sBCC, sReplyTo) {
+        var r = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        var f = (s) => !s || s.split(",").every((e) => r.test(e.trim()));
+        return f(sTo) && f(sCC) && f(sBCC) && f(sReplyTo);
       },
     });
   },

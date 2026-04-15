@@ -366,27 +366,32 @@ sap.ui.define(
                 MimeType: att.mime,
               }));
               // Biến mapping để lưu những biến nào đã được user nhập giá trị, sẽ được ghi vào log để tiện tra cứu sau này
-              var oVarMapping = {};
+              var aVarsForABAP = [];
               var aVars =
                 this.getView().getModel("variables").getProperty("/items") ||
                 [];
 
               aVars.forEach(function (v) {
-                // Chỉ lưu những biến mà user thực sự có gõ giá trị vào
                 if (v.value && v.value.trim() !== "") {
-                  oVarMapping[v.name] = v.value.trim();
+                  aVarsForABAP.push({
+                    VAR_NAME: v.name,
+                    VAR_VALUE: v.value.trim(),
+                  });
                 }
               });
+
               var sVarMappingJson =
-                Object.keys(oVarMapping).length > 0
-                  ? JSON.stringify(oVarMapping)
-                  : "";
+                aVarsForABAP.length > 0 ? JSON.stringify(aVarsForABAP) : "";
+
+              // LẤY HTML GỐC (Chưa thay biến) ĐỂ GỬI XUỐNG BE CHO ENGINE XỬ LÝ
+              var sRawHtml = oPreview.OriginalBodyContent || "";
               // Payload Json for BE
               var oLogData = {
                 TemplateId: templateId,
                 Status: "O",
                 SenderEmail: oMail.replyTo,
-                ComposeContent: body,
+                RawContent: oPreview.OriginalBodyContent,
+                ComposeContent: oPreview.OriginalBodyContent,
                 VarMappingJson: sVarMappingJson,
                 to_Details: aLogDetails,
                 to_Attachments: aLogAttachments,

@@ -3,181 +3,273 @@
     xmlns="sap.m"
     xmlns:mvc="sap.ui.core.mvc"
     xmlns:core="sap.ui.core"
-    xmlns:rte="sap.ui.richtexteditor">
+    xmlns:f="sap.f"
+    xmlns:rte="sap.ui.richtexteditor"
+    xmlns:code="sap.ui.codeeditor">
 
-    <Page
-        title="Template Preview"
-        showNavButton="true"
-        navButtonPress=".onNavBack">
+    <f:DynamicPage id="detailDynamicPage" toggleHeaderOnTitleClick="false">
 
-        <headerContent>
-            <Button
-                text="Send Email"
-                type="Emphasized"
-                icon="sap-icon://email"
-                press=".onSendEmailPress" />
-        </headerContent>
+        <f:title>
+            <f:DynamicPageTitle>
+                <f:heading>
+                    <HBox alignItems="Center" renderType="Bare">
+                        
+                        <Button
+                            icon="sap-icon://nav-back"
+                            type="Transparent"
+                            press=".onNavBack"
+                            class="sapUiTinyMarginEnd" />
 
-        <content>
+                        <Title text="Template Preview" level="H2" />
+
+                    </HBox>
+                </f:heading>
+
+                <f:actions>
+                    <Button
+                        text="Send Email"
+                        type="Emphasized"
+                        icon="sap-icon://email"
+                        press=".onSendEmailPress" />
+                </f:actions>
+            </f:DynamicPageTitle>
+        </f:title>
+
+        <f:content>
             <VBox class="detailPageWrapper sapUiSmallMargin">
 
-                <Panel headerText="Receiver Information" class="sapUiSmallMarginBottom">
-                    <VBox class="sapUiSmallMargin">
-                        <Label text="To" required="true" />
-                        <Input value="{mailForm>/to}" placeholder="user1@mail.com,user2@mail.com" />
+            <HBox class="workspaceSplit" width="100%" alignItems="Start">
 
-                        <Label text="CC" class="sapUiSmallMarginTop" />
-                        <Input value="{mailForm>/cc}" placeholder="cc1@mail.com,cc2@mail.com" />
+                <!-- LEFT: Editor -->
+                <VBox width="50%">
+                    <Panel class="editorCard" backgroundDesign="Solid">
+                        <HBox width="100%" alignItems="Start">
 
-                        <Label text="BCC" class="sapUiSmallMarginTop" />
-                        <Input value="{mailForm>/bcc}" placeholder="bcc1@mail.com,bcc2@mail.com" />
+                            <!-- NAV -->
+                            <VBox class="editorNav">
+                                <Button
+                                    icon="sap-icon://email"
+                                    type="{= ${ui>/activeTab} === 'receiver' ? 'Emphasized' : 'Transparent' }"
+                                    tooltip="Receiver Information"
+                                    press=".onNavSelect"
+                                    class="editorNavBtn">
+                                    <customData>
+                                        <core:CustomData key="key" value="receiver" />
+                                    </customData>
+                                </Button>
 
-                        <Label text="Reply-To" class="sapUiSmallMarginTop" />
-                        <Input value="{mailForm>/replyTo}" placeholder="reply@mail.com" />
-                    </VBox>
-                </Panel>
+                                <Button
+                                    icon="sap-icon://document-text"
+                                    type="{= ${ui>/activeTab} === 'variables' ? 'Emphasized' : 'Transparent' }"
+                                    tooltip="Detected Variables"
+                                    press=".onNavSelect"
+                                    class="editorNavBtn sapUiTinyMarginTop">
+                                    <customData>
+                                        <core:CustomData key="key" value="variables" />
+                                    </customData>
+                                </Button>
 
-                <Panel
-                    headerText="Detected Variables"
-                    class="sapUiSmallMarginBottom"
-                    visible="{= ${variables>/items}.length > 0 }">
-                    <VBox class="sapUiSmallMargin">
-                        <List
-                            items="{variables>/items}"
-                            growing="false"
-                            showSeparators="Inner">
-                            <CustomListItem>
-                                <VBox class="sapUiTinyMarginTop sapUiTinyMarginBottom">
-                                    <Label text="{variables>name}" />
-                                    <Input
-                                        value="{variables>value}"
-                                        liveChange=".onVariableValueChange"
-                                        placeholder="Nhập giá trị cho {variables>token}" />
-                                    <Text text="{variables>token}" class="sapUiTinyMarginTop" />
-                                </VBox>
-                            </CustomListItem>
-                        </List>
+                                <Button
+                                    icon="sap-icon://source-code"
+                                    type="{= ${ui>/activeTab} === 'source' ? 'Emphasized' : 'Transparent' }"
+                                    tooltip="HTML Source Editor"
+                                    press=".onNavSelect"
+                                    class="editorNavBtn sapUiTinyMarginTop">
+                                    <customData>
+                                        <core:CustomData key="key" value="source" />
+                                    </customData>
+                                </Button>
+                            </VBox>
 
-                        <HBox
-                            justifyContent="End"
-                            class="sapUiSmallMarginTop">
-                            <Button
-                                text="Reset Body"
-                                type="Transparent"
-                                press=".onResetBodyPress"
-                                class="sapUiTinyMarginEnd" />
-                            <Button
-                                text="Apply Variables"
-                                type="Emphasized"
-                                press=".onApplyVariablesPress" />
+                            <!-- CONTENT -->
+                            <VBox class="editorContent" width="100%">
+                                <Panel
+                                    headerText="Receiver Information"
+                                    class="sapUiSmallMarginBegin"
+                                    visible="{= ${ui>/activeTab} === 'receiver' }">
+                                    <VBox class="sapUiSmallMargin">
+                                        <Label text="To" required="true" />
+                                        <Input value="{mailForm>/to}" placeholder="user1@mail.com,user2@mail.com" />
+
+                                        <Label text="CC" class="sapUiSmallMarginTop" />
+                                        <Input value="{mailForm>/cc}" placeholder="cc1@mail.com,cc2@mail.com" />
+
+                                        <Label text="BCC" class="sapUiSmallMarginTop" />
+                                        <Input value="{mailForm>/bcc}" placeholder="bcc1@mail.com,bcc2@mail.com" />
+
+                                        <Label text="Reply-To" class="sapUiSmallMarginTop" />
+                                        <Input value="{mailForm>/replyTo}" placeholder="reply@mail.com" />
+
+                                        <Label text="Subject" class="sapUiSmallMarginTop" />
+                                        <Input value="{preview>/Subject}" placeholder="Enter subject..." />
+                                    </VBox>
+                                </Panel>
+
+                                <Panel
+                                    headerText="Body Editor"
+                                    class="sapUiSmallMarginBegin"
+                                    visible="{= ${ui>/activeTab} === 'source' }">
+                                    <VBox class="sapUiSmallMargin">
+
+                                        <SegmentedButton
+                                            selectedKey="{ui>/bodyEditMode}"
+                                            selectionChange=".onBodyEditModeChange">
+                                            <items>
+                                                <SegmentedButtonItem key="visual" text="Visual" icon="sap-icon://edit" />
+                                                <SegmentedButtonItem key="html" text="HTML Source" icon="sap-icon://source-code" />
+                                            </items>
+                                        </SegmentedButton>
+
+                                        <rte:RichTextEditor
+                                            id="bodyVisualEditor"
+                                            width="100%"
+                                            height="500px"
+                                            value="{preview>/BodyContentEdit}"
+                                            editable="true"
+                                            sanitizeValue="false"
+                                            visible="{= ${ui>/bodyEditMode} === 'visual' }"                                            
+                                            showGroupFont="true"
+                                            showGroupLink="true"
+                                            showGroupInsert="true"
+                                            showGroupStructure="true"
+                                            showGroupTextAlign="true" />
+
+                                        <code:CodeEditor
+                                            id="htmlSourceEditor"
+                                            type="html"
+                                            value="{preview>/BodyContentEdit}"
+                                            height="500px"
+                                            width="100%"    
+                                            visible="{= ${ui>/bodyEditMode} === 'html' }" />
+
+                                    </VBox>
+                                </Panel>
+
+                                <Panel
+                                    headerText="Detected Variables"
+                                    class="sapUiSmallMarginBegin"
+                                    visible="{= ${ui>/activeTab} === 'variables' }">
+                                    <VBox class="sapUiSmallMargin">
+                                        <List
+                                            items="{variables>/items}"
+                                            growing="false"
+                                            showSeparators="Inner">
+                                            <CustomListItem>
+                                                <HBox
+                                                    width="100%"
+                                                    justifyContent="SpaceBetween"
+                                                    alignItems="Center"
+                                                    class="sapUiTinyMarginTop sapUiTinyMarginBottom">
+
+                                                    <VBox width="35%">
+                                                        <Label text="{variables>name}" />
+                                                        <Text text="{variables>token}" class="sapUiTinyMarginTop" />
+                                                    </VBox>
+
+                                                    <Input
+                                                        width="60%"
+                                                        value="{variables>value}"
+                                                        liveChange=".onVariableValueChange"
+                                                        placeholder="Nhập giá trị..." />
+                                                </HBox>
+                                            </CustomListItem>
+                                        </List>
+
+                                        <HBox
+                                            justifyContent="End"
+                                            class="sapUiSmallMarginTop">
+                                            <Button
+                                                text="Reset Body"
+                                                type="Transparent"
+                                                press=".onResetBodyPress"
+                                                class="sapUiTinyMarginEnd" />
+                                            <Button
+                                                text="Apply Variables"
+                                                type="Emphasized"
+                                                press=".onApplyVariablesPress" />
+                                        </HBox>
+                                    </VBox>
+                                </Panel>
+                            </VBox>
+
                         </HBox>
-                    </VBox>
-                </Panel>
-
-                <HBox
-                    class="previewToolbar sapUiSmallMarginBottom"
-                    justifyContent="End"
-                    alignItems="Center">
-                    <SegmentedButton
-                        selectedKey="desktop"
-                        selectionChange=".onPreviewModeChange">
-                        <items>
-                            <SegmentedButtonItem key="desktop" icon="sap-icon://desktop-mobile" />
-                            <SegmentedButtonItem key="tablet" icon="sap-icon://tablet-2" />
-                            <SegmentedButtonItem key="mobile" icon="sap-icon://iphone" />
-                        </items>
-                    </SegmentedButton>
-                </HBox>
-
-                <VBox
-                    id="previewWrapper"
-                    class="emailPreviewShell previewDesktop">
-
-                    <Panel class="emailCard">
-                        <headerToolbar>
-                            <OverflowToolbar>
-                                <Title text="Email Preview" level="H4" />
-                                <ToolbarSpacer />
-                                <ObjectStatus
-                                    text="{
-                                        path: 'preview>/IsActive',
-                                        formatter: '.formatter.statusText'
-                                    }"
-                                    state="{
-                                        path: 'preview>/IsActive',
-                                        formatter: '.formatter.statusState'
-                                    }" />
-                            </OverflowToolbar>
-                        </headerToolbar>
-
-                        <content>
-                            <VBox class="emailHeader sapUiSmallMargin">
-
-                                <HBox class="emailMetaRow sapUiTinyMarginBottom" wrap="NoWrap">
-                                    <Text text="From:" class="emailMetaLabel" />
-                                    <Text text="{mailForm>/replyTo}" class="emailMetaValue" />
-                                </HBox>
-
-                                <HBox class="emailMetaRow sapUiTinyMarginBottom" wrap="NoWrap">
-                                    <Text text="To:" class="emailMetaLabel" />
-                                    <Text text="{mailForm>/to}" class="emailMetaValue" />
-                                </HBox>
-
-                                <HBox class="emailMetaRow sapUiTinyMarginBottom" wrap="NoWrap" visible="{= !!${mailForm>/cc} }">
-                                    <Text text="CC:" class="emailMetaLabel" />
-                                    <Text text="{mailForm>/cc}" class="emailMetaValue" />
-                                </HBox>
-
-                                <HBox class="emailMetaRow sapUiTinyMarginBottom" wrap="NoWrap" visible="{= !!${mailForm>/bcc} }">
-                                    <Text text="BCC:" class="emailMetaLabel" />
-                                    <Text text="{mailForm>/bcc}" class="emailMetaValue" />
-                                </HBox>
-
-                                <HBox class="emailMetaRow" wrap="NoWrap">
-                                    <Text text="Subject:" class="emailMetaLabel" />
-                                    <Input value="{preview>/Subject}" width="100%" />
-                                </HBox>
-                            </VBox>
-
-                            <VBox class="emailBody sapUiSmallMargin">
-                                <HBox justifyContent="End" class="sapUiSmallMarginBottom">
-                                    <SegmentedButton
-                                        selectedKey="{ui>/bodyEditMode}"
-                                        selectionChange=".onBodyEditModeChange">
-                                        <items>
-                                            <SegmentedButtonItem key="visual" text="Visual" icon="sap-icon://edit" />
-                                            <SegmentedButtonItem key="html" text="HTML Source" icon="sap-icon://source-code" />
-                                        </items>
-                                    </SegmentedButton>
-                                </HBox>
-
-                                <rte:RichTextEditor
-                                    id="htmlEditor"
-                                    width="100%"
-                                    height="500px"
-                                    value="{preview>/BodyContent}"
-                                    editable="true"
-                                    visible="{= ${ui>/bodyEditMode} === 'visual' }"
-                                    showGroupFont="true"
-                                    showGroupLink="true"
-                                    showGroupInsert="true"
-                                    showGroupStructure="true"
-                                    showGroupTextAlign="true" />
-
-                                <TextArea
-                                    id="htmlSourceEditor"
-                                    value="{preview>/BodyContent}"
-                                    liveChange=".onBodyContentLiveChange"
-                                    visible="{= ${ui>/bodyEditMode} === 'html' }"
-                                    width="100%"
-                                    rows="25"
-                                    growing="false"
-                                    placeholder="Nhập HTML source tại đây..." />
-                            </VBox>
-                        </content>
                     </Panel>
                 </VBox>
-            </VBox>
-        </content>
-    </Page>
+
+                <ToolbarSpacer width="1rem" />
+                <!-- RIGHT: Preview -->
+                <VBox class="workspaceRight sapUiSmallMarginBegin" width="50%">
+
+                    <VBox
+                        id="previewWrapper"
+                        class="emailPreviewShell previewDesktop">
+
+                        <Panel class="emailCard">
+                            <headerToolbar>
+                                <OverflowToolbar>
+                                    <Title text="Email Preview" level="H4" />
+                                    <ToolbarSpacer />
+
+                                    <Button 
+                                        text="Refresh" 
+                                        icon="sap-icon://synchronize" 
+                                        type="Emphasized" 
+                                        press=".onRefreshPreviewPress" 
+                                        class="sapUiTinyMarginEnd" />
+
+                                    <ObjectStatus
+                                        text="{
+                                            path: 'preview>/IsActive',
+                                            formatter: '.formatter.statusText'
+                                        }"
+                                        state="{
+                                            path: 'preview>/IsActive',
+                                            formatter: '.formatter.statusState'
+                                        }" />
+                                </OverflowToolbar>
+                            </headerToolbar>
+
+                            <content>
+
+                                <VBox class="emailHeader sapUiSmallMargin">
+
+                                    <HBox class="emailMetaRow sapUiTinyMarginBottom" wrap="NoWrap">
+                                        <Text text="To:" class="emailMetaLabel" />
+                                        <Text text="{mailForm>/to}" class="emailMetaValue" />
+                                    </HBox>
+
+                                    <HBox class="emailMetaRow sapUiTinyMarginBottom" wrap="NoWrap" visible="{= !!${mailForm>/cc} }">
+                                        <Text text="CC:" class="emailMetaLabel" />
+                                        <Text text="{mailForm>/cc}" class="emailMetaValue" />
+                                    </HBox>
+
+                                    <HBox class="emailMetaRow sapUiTinyMarginBottom" wrap="NoWrap" visible="{= !!${mailForm>/bcc} }">
+                                        <Text text="BCC:" class="emailMetaLabel" />
+                                        <Text text="{mailForm>/bcc}" class="emailMetaValue" />
+                                    </HBox>
+
+                                    <HBox class="emailMetaRow" wrap="NoWrap">
+                                        <Text text="Subject:" class="emailMetaLabel" />
+                                        <Text text="{preview>/Subject}" class="emailMetaValue" />
+                                    </HBox>
+
+                                </VBox>
+
+                                <VBox class="emailBody sapUiSmallMargin">
+                                    <core:HTML 
+                                        id="previewHtml" 
+                                        content="{preview>/BodyContentPreview}" 
+                                        preferDOM="false"
+                                        sanitizeContent="false"/>
+                                </VBox>
+                            </content>
+                        </Panel>
+                    </VBox>
+                </VBox>
+
+            </HBox>
+        </VBox>
+        </f:content>
+
+    </f:DynamicPage>
 </mvc:View>

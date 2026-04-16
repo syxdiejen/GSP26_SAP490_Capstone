@@ -53,7 +53,7 @@ sap.ui.define(
             BodyContentPreview: "<div>No content</div>",
             OriginalBodyContent: "<div>No content</div>",
           }),
-          "preview"
+          "preview",
         );
 
         this.getView().setModel(
@@ -63,14 +63,14 @@ sap.ui.define(
             bcc: "",
             replyTo: "",
           }),
-          "mailForm"
+          "mailForm",
         );
 
         this.getView().setModel(
           new JSONModel({
             items: [],
           }),
-          "variables"
+          "variables",
         );
 
         this.getView().setModel(
@@ -78,7 +78,7 @@ sap.ui.define(
             bodyEditMode: "visual",
             activeTab: "receiver",
           }),
-          "ui"
+          "ui",
         );
 
         this.getOwnerComponent()
@@ -125,25 +125,29 @@ sap.ui.define(
             BusyIndicator.hide();
 
             var aBodies = oData.to_Body?.results || [];
-            var sBodyContent = aBodies.map(function (o) {
-              return o.Content || "";
-            }).join("\n");
+            var sBodyContent = aBodies
+              .map(function (o) {
+                return o.Content || "";
+              })
+              .join("\n");
 
             sBodyContent = sBodyContent || "<div>No content</div>";
 
-            this.getView().getModel("preview").setData({
-              DbKey: oData.DbKey,
-              IsActiveEntity: oData.IsActiveEntity,
-              TemplateId: oData.TemplateId || "",
-              IsActive: !!oData.IsActive,
-              SenderEmail: oData.SenderEmail || "",
-              Subject: oData.Subject || "",
-              OriginalSubject: oData.Subject || "",
-              BodyContent: sBodyContent,
-              BodyContentEdit: sBodyContent,
-              BodyContentPreview: sBodyContent,
-              OriginalBodyContent: sBodyContent,
-            });
+            this.getView()
+              .getModel("preview")
+              .setData({
+                DbKey: oData.DbKey,
+                IsActiveEntity: oData.IsActiveEntity,
+                TemplateId: oData.TemplateId || "",
+                IsActive: !!oData.IsActive,
+                SenderEmail: oData.SenderEmail || "",
+                Subject: oData.Subject || "",
+                OriginalSubject: oData.Subject || "",
+                BodyContent: sBodyContent,
+                BodyContentEdit: sBodyContent,
+                BodyContentPreview: sBodyContent,
+                OriginalBodyContent: sBodyContent,
+              });
 
             this.getView()
               .getModel("mailForm")
@@ -187,28 +191,32 @@ sap.ui.define(
       },
 
       onApplyVariablesPress: function () {
-          var oPreview = this.getView().getModel("preview");
-          var vars = this.getView().getModel("variables").getProperty("/items") || [];
-          var body = oPreview.getProperty("/OriginalBodyContent") || "";
+        var oPreview = this.getView().getModel("preview");
+        var vars =
+          this.getView().getModel("variables").getProperty("/items") || [];
+        var body = oPreview.getProperty("/OriginalBodyContent") || "";
 
-          vars.forEach(function (v) {
-              body = body.split(v.token).join(v.value || "");
-          });
+        vars.forEach(function (v) {
+          body = body.split(v.token).join(v.value || "");
+        });
 
-          // Bọc thẻ div trước khi đẩy ra Preview
-          var sSafeContent = "<div class='safe-preview-wrapper'>" + body + "</div>";
+        // Bọc thẻ div trước khi đẩy ra Preview
+        var sSafeContent =
+          "<div class='safe-preview-wrapper'>" + body + "</div>";
 
-          // Cập nhật giá trị
-          oPreview.setProperty("/BodyContent", body);
-          oPreview.setProperty("/BodyContentEdit", body); // Edit thì không cần bọc div
-          oPreview.setProperty("/BodyContentPreview", sSafeContent); // Preview thì bắt buộc bọc
+        // Cập nhật giá trị
+        oPreview.setProperty("/BodyContent", body);
+        oPreview.setProperty("/BodyContentEdit", body); // Edit thì không cần bọc div
+        oPreview.setProperty("/BodyContentPreview", sSafeContent); // Preview thì bắt buộc bọc
 
-          sap.m.MessageToast.show("Đã apply biến");
+        sap.m.MessageToast.show("Đã apply biến");
       },
 
       onResetBodyPress: function () {
         var oPreview = this.getView().getModel("preview");
-        var original = oPreview.getProperty("/OriginalBodyContent") || "<div>No content</div>";
+        var original =
+          oPreview.getProperty("/OriginalBodyContent") ||
+          "<div>No content</div>";
 
         oPreview.setProperty("/BodyContent", original);
         oPreview.setProperty("/BodyContentEdit", original);
@@ -232,49 +240,54 @@ sap.ui.define(
       },
 
       onBodyEditModeChange: function (oEvent) {
-          var sKey = oEvent.getParameter("item").getKey();
-          var oPreviewModel = this.getView().getModel("preview");
-          var sCurrentValue = "";
+        var sKey = oEvent.getParameter("item").getKey();
+        var oPreviewModel = this.getView().getModel("preview");
+        var sCurrentValue = "";
 
-          var sPreviousMode = this.getView().getModel("ui").getProperty("/bodyEditMode");
+        var sPreviousMode = this.getView()
+          .getModel("ui")
+          .getProperty("/bodyEditMode");
 
-          // Lấy dữ liệu từ tab TRƯỚC ĐÓ để đồng bộ sang tab MỚI
-          if (sPreviousMode === "visual") { 
-              sCurrentValue = this.byId("bodyVisualEditor").getValue();
-          } else if (sPreviousMode === "html") {
-              sCurrentValue = this.byId("htmlSourceEditor").getValue();
-          }
+        // Lấy dữ liệu từ tab TRƯỚC ĐÓ để đồng bộ sang tab MỚI
+        if (sPreviousMode === "visual") {
+          sCurrentValue = this.byId("bodyVisualEditor").getValue();
+        } else if (sPreviousMode === "html") {
+          sCurrentValue = this.byId("htmlSourceEditor").getValue();
+        }
 
-          // Cập nhật lại Model (không đụng tới BodyContentPreview)
-          oPreviewModel.setProperty("/BodyContentEdit", sCurrentValue);
-          
-          // Đổi UI sang tab mới
-          this.getView().getModel("ui").setProperty("/bodyEditMode", sKey);
+        // Cập nhật lại Model (không đụng tới BodyContentPreview)
+        oPreviewModel.setProperty("/BodyContentEdit", sCurrentValue);
+
+        // Đổi UI sang tab mới
+        this.getView().getModel("ui").setProperty("/bodyEditMode", sKey);
       },
 
       onRefreshPreviewPress: function () {
-          var sCurrentMode = this.getView().getModel("ui").getProperty("/bodyEditMode");
-          var sCurrentValue = "";
+        var sCurrentMode = this.getView()
+          .getModel("ui")
+          .getProperty("/bodyEditMode");
+        var sCurrentValue = "";
 
-          // 1. Lấy dữ liệu mới nhất từ Editor đang hiển thị
-          if (sCurrentMode === "visual") {
-              sCurrentValue = this.byId("bodyVisualEditor").getValue();
-          } else if (sCurrentMode === "html") {
-              sCurrentValue = this.byId("htmlSourceEditor").getValue();
-          }
+        // 1. Lấy dữ liệu mới nhất từ Editor đang hiển thị
+        if (sCurrentMode === "visual") {
+          sCurrentValue = this.byId("bodyVisualEditor").getValue();
+        } else if (sCurrentMode === "html") {
+          sCurrentValue = this.byId("htmlSourceEditor").getValue();
+        }
 
-          // 2. [QUAN TRỌNG] Bọc nội dung vào 1 thẻ gốc duy nhất (div) 
-          // Việc này triệt tiêu hoàn toàn bug cộng dồn DOM của core:HTML
-          var sSafeContent = "<div class='safe-preview-wrapper'>" + sCurrentValue + "</div>";
+        // 2. [QUAN TRỌNG] Bọc nội dung vào 1 thẻ gốc duy nhất (div)
+        // Việc này triệt tiêu hoàn toàn bug cộng dồn DOM của core:HTML
+        var sSafeContent =
+          "<div class='safe-preview-wrapper'>" + sCurrentValue + "</div>";
 
-          // 3. Cập nhật vùng Preview
-          var oPreviewModel = this.getView().getModel("preview");
-          oPreviewModel.setProperty("/BodyContentPreview", sSafeContent);
-          
-          // [ĐÃ XÓA] oPreviewModel.setProperty("/BodyContentEdit", sCurrentValue);
-          // Lý do xóa: Tránh vòng lặp khiến RichTextEditor tự nhân đôi nội dung bên trong nó.
+        // 3. Cập nhật vùng Preview
+        var oPreviewModel = this.getView().getModel("preview");
+        oPreviewModel.setProperty("/BodyContentPreview", sSafeContent);
 
-          sap.m.MessageToast.show("Đã cập nhật bản xem trước");
+        // [ĐÃ XÓA] oPreviewModel.setProperty("/BodyContentEdit", sCurrentValue);
+        // Lý do xóa: Tránh vòng lặp khiến RichTextEditor tự nhân đôi nội dung bên trong nó.
+
+        sap.m.MessageToast.show("Đã cập nhật bản xem trước");
       },
 
       onSendEmailPress: function () {
@@ -315,7 +328,7 @@ sap.ui.define(
               new Label({ text: "Gửi đến (To):" }),
               new Input({ value: oMail.to, editable: false }),
               new Label({ text: "Đính kèm:" }).addStyleClass(
-                "sapUiSmallMarginTop"
+                "sapUiSmallMarginTop",
               ),
               uploader,
             ],
@@ -356,7 +369,7 @@ sap.ui.define(
                   .then(
                     function (aReadyFiles) {
                       this._executeSendEmail(aReadyFiles);
-                    }.bind(this)
+                    }.bind(this),
                   )
                   .catch(function () {
                     BusyIndicator.hide();
@@ -389,17 +402,59 @@ sap.ui.define(
         var oContext = this.getView().getBindingContext("email");
 
         var subject = oPreview.Subject || "No Subject";
-        var body = oPreview.BodyContent || oPreview.BodyContentPreview || oPreview.BodyContentEdit || "";
         var templateId = oContext
           ? oContext.getProperty("TemplateId")
           : oPreview.TemplateId || "";
+
+        // 🔥 FIX 1: Lấy nội dung THỰC TẾ trực tiếp từ Editor đang active
+        var sCurrentMode = this.getView()
+          .getModel("ui")
+          .getProperty("/bodyEditMode");
+        var sCurrentRawBody = "";
+
+        if (sCurrentMode === "visual") {
+          sCurrentRawBody = this.byId("bodyVisualEditor").getValue();
+        } else if (sCurrentMode === "html") {
+          sCurrentRawBody = this.byId("htmlSourceEditor").getValue();
+        }
+
+        // Fallback: Nếu không móc được Editor thì lấy tạm từ Model
+        if (!sCurrentRawBody) {
+          sCurrentRawBody =
+            oPreview.BodyContentEdit || oPreview.OriginalBodyContent || "";
+        }
+
+        // 🔥 FIX 2: Apply biến trực tiếp vào nội dung Editor vừa lấy ra
+        var sFinalBodyForGoogle = sCurrentRawBody;
+        var aVarsForABAP = [];
+        var aVars =
+          this.getView().getModel("variables").getProperty("/items") || [];
+
+        aVars.forEach(function (v) {
+          // Thay thế biến cho bản HTML sẽ gửi qua Google
+          sFinalBodyForGoogle = sFinalBodyForGoogle
+            .split(v.token)
+            .join(v.value || "");
+
+          // Gom biến để lát gửi xuống SAP ghi Log
+          if (v.value && v.value.trim() !== "") {
+            aVarsForABAP.push({
+              VAR_NAME: v.name,
+              VAR_VALUE: v.value.trim(),
+            });
+          }
+        });
+
+        // Đóng gói JSON mảng biến cho ABAP
+        var sVarMappingJson =
+          aVarsForABAP.length > 0 ? JSON.stringify(aVarsForABAP) : "";
 
         var payload = {
           recipient: oMail.to,
           cc: oMail.cc,
           bcc: oMail.bcc,
           subject: subject,
-          message: body,
+          message: sFinalBodyForGoogle, // <-- Dùng bản đã được chỉnh sửa + replace biến
           replyTo: oMail.replyTo,
           senderName: "SAP Fiori",
           attachments: attachments.map(function (att) {
@@ -419,7 +474,7 @@ sap.ui.define(
             method: "POST",
             headers: { "Content-Type": "text/plain" },
             body: JSON.stringify(payload),
-          }
+          },
         )
           .then(function (r) {
             return r.text();
@@ -461,28 +516,13 @@ sap.ui.define(
                 };
               });
 
-              var aVarsForABAP = [];
-              var aVars =
-                this.getView().getModel("variables").getProperty("/items") || [];
-
-              aVars.forEach(function (v) {
-                if (v.value && v.value.trim() !== "") {
-                  aVarsForABAP.push({
-                    VAR_NAME: v.name,
-                    VAR_VALUE: v.value.trim(),
-                  });
-                }
-              });
-
-              var sVarMappingJson =
-                aVarsForABAP.length > 0 ? JSON.stringify(aVarsForABAP) : "";
-
+              // --- PAYLOAD CHO SAP ---
               var oLogData = {
                 TemplateId: templateId,
                 Status: "O",
                 SenderEmail: oMail.replyTo,
-                RawContent: oPreview.OriginalBodyContent,
-                ComposeContent: body,
+                RawContent: sCurrentRawBody, // Lưu đúng bản user đã chỉnh tay làm gốc (Rất quan trọng cho Audit)
+                ComposeContent: sFinalBodyForGoogle, // Bản hoàn thiện đã biến hình
                 VarMappingJson: sVarMappingJson,
                 to_Details: aLogDetails,
                 to_Attachments: aLogAttachments,
@@ -505,7 +545,7 @@ sap.ui.define(
                     if (iIndex >= aFiles.length) {
                       BusyIndicator.hide();
                       MessageBox.success(
-                        "🎉 Email đã gửi và Upload file đính kèm thành công!"
+                        "🎉 Email đã gửi và Upload file đính kèm thành công!",
                       );
                       oModel.refresh(true);
                       return;
@@ -550,7 +590,7 @@ sap.ui.define(
                   oModel.setUseBatch(true);
                 },
               });
-            }.bind(this)
+            }.bind(this),
           )
           .catch(function () {
             BusyIndicator.hide();
@@ -561,12 +601,15 @@ sap.ui.define(
       _validateEmails: function (sTo, sCC, sBCC, sReplyTo) {
         var r = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         var f = function (s) {
-          return !s || s.split(",").every(function (e) {
-            return r.test(e.trim());
-          });
+          return (
+            !s ||
+            s.split(",").every(function (e) {
+              return r.test(e.trim());
+            })
+          );
         };
         return f(sTo) && f(sCC) && f(sBCC) && f(sReplyTo);
       },
     });
-  }
+  },
 );

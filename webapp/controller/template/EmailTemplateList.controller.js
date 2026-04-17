@@ -27,6 +27,12 @@ sap.ui.define([
         // =========================================================
         onInit: function () {
             this._initViewModel();
+
+            this._oRouter = this.getOwnerComponent().getRouter();
+            this._oRouter.getRoute("templatelist").attachPatternMatched(this._onRouteMatched, this);
+        },
+
+        _onRouteMatched: function () {
             this._loadTemplates();
         },
 
@@ -126,6 +132,18 @@ sap.ui.define([
             };
         },
 
+        _isTemplateActive: function (oTemplate) {
+            return !!(oTemplate && oTemplate.IsActive === true);
+        },
+
+        _ensureTemplateActive: function (oTemplate) {
+            if (!this._isTemplateActive(oTemplate)) {
+                MessageBox.warning("This template is not active. Please activate it before using.");
+                return false;
+            }
+            return true;
+        },
+
         _applyFilters: function () {
             var oEmailModel = this._getEmailModel();
             var aAllTemplates = oEmailModel.getProperty("/AllEmailTemplates") || [];
@@ -174,6 +192,7 @@ sap.ui.define([
 
         onItemPress: function (oEvent) {
             var oContext = oEvent.getSource().getBindingContext("email");
+
             this._navToDetail(oContext);
         },
 

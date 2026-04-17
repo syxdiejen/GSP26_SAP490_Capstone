@@ -12,6 +12,10 @@
                     <Title text="{i18n>emailTemplateListTitle}" />
                 </f:heading>
 
+                <f:expandedContent>
+                    <Label text="Manage reusable templates to standardize content and streamline creation workflows." />
+                </f:expandedContent>
+
                 <f:actions>
                     <Button icon="sap-icon://overflow" type="Transparent" />
                     <Button
@@ -39,7 +43,7 @@
                         change=".onCategoryChange">
                         <items>
                             <core:Item key="ALL" text="Show All" />
-                                <core:Item key="Sales" text="" />
+                                <core:Item key="Sales" />
                                 <core:Item key="Marketing" text="Marketing" />
                                 <core:Item key="System" text="System" />
                         </items>

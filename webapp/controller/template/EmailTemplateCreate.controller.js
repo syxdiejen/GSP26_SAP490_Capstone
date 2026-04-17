@@ -14,6 +14,10 @@ sap.ui.define([
     "use strict";
 
     return Controller.extend("zemail.template.app.controller.template.EmailTemplateCreate", {
+
+        // =========================================================
+        // Lifecycle / Init
+        // =========================================================
         onInit: function () {
             this._oRouter = this.getOwnerComponent().getRouter();
             this.getView().setModel(this._createViewModel(), "create");
@@ -21,8 +25,17 @@ sap.ui.define([
 
             this._oRouter.getRoute("templatecreate").attachPatternMatched(this._onCreateMatched, this);
             this._oRouter.getRoute("templateobject").attachPatternMatched(this._onObjectMatched, this);
+
+            var oWizard = this.byId("createWizard");
+            if (oWizard) {
+                oWizard.setFinishButtonText("Reload Preview");
+                oWizard.attachComplete(this.onReloadPreviewPress, this);
+            }
         },
 
+        // =========================================================
+        // Model Helpers
+        // =========================================================
         _createViewModel: function () {
             return new JSONModel({
                 mode: "create",
@@ -67,25 +80,17 @@ sap.ui.define([
             this.getView().setBusy(!!bBusy);
         },
 
-        onBodyHtmlChange: function (oEvent) {
-            var sHtml = oEvent.getParameter("value") || "";
-            this._updateBodyHtml(sHtml);
-        },
-
-        onSaveDraft: function () {
-            this._save(false);
-        },
-
-        onSaveActivate: function () {
-            this._save(true);
-        },
-
+        // =========================================================
+        // Route Handlers
+        // =========================================================
         _onCreateMatched: function () {
             this._resetForm();
 
             this._getCreateModel().setProperty("/mode", "create");
             this._getCreateModel().setProperty("/title", "Create Email Template");
             this._getCreateModel().setProperty("/isActiveEntity", false);
+
+            this._updateStepBasicValidation();
         },
 
         _onObjectMatched: function (oEvent) {
@@ -101,6 +106,8 @@ sap.ui.define([
                 },
                 success: function (oData) {
                     this._fillFormFromHeader(oData);
+                    this._updateStepBasicValidation();
+
                     this._getCreateModel().setProperty("/mode", "edit");
                     this._getCreateModel().setProperty("/title", "Edit Email Template");
                     this._getCreateModel().setProperty("/dbKey", oData.DbKey);
@@ -108,16 +115,7 @@ sap.ui.define([
                     this._getCreateModel().setProperty("/isDraftCreated", true);
 
                     setTimeout(function () {
-                        var sHtml = this._getCreateModel().getProperty("/bodyHtml") || "";
-                        var oRTE = this.byId("emailRTE");
-                        var oCode = this.byId("emailCode");
-
-                        if (oRTE) {
-                            oRTE.setValue(sHtml);
-                        }
-                        if (oCode) {
-                            oCode.setValue(sHtml);
-                        }
+                        this._pushModelToEditors();
                     }.bind(this), 0);
 
                     this._setBusy(false);
@@ -156,7 +154,20 @@ sap.ui.define([
             }
         },
 
+        // =========================================================
+        // Save / CRUD Flow
+        // =========================================================
+        onSaveDraft: function () {
+            this._save(false);
+        },
+
+        onSaveActivate: function () {
+            this._save(true);
+        },
+
         _save: function (bActivateAfterSave) {
+            this._flushCurrentEditor();
+
             if (!this._validate()) {
                 return;
             }
@@ -211,6 +222,21 @@ sap.ui.define([
                 }.bind(this));
         },
 
+        _createHeader: function (oHeaderPayload) {
+            var oODataModel = this._getODataModel();
+
+            return new Promise(function (resolve, reject) {
+                oODataModel.create("/EmailHeader", oHeaderPayload, {
+                    success: function (oData) {
+                        resolve(oData);
+                    },
+                    error: function (oError) {
+                        reject(new Error(this._getErrorMessage(oError, "Create Header failed")));
+                    }.bind(this)
+                });
+            }.bind(this));
+        },
+
         _updateHeaderDraft: function () {
             var oModel = this._getODataModel();
             var sDbKey = this._getCreateModel().getProperty("/dbKey");
@@ -228,10 +254,33 @@ sap.ui.define([
             }.bind(this));
         },
 
+        _createBodyDraft: function (sDbKey) {
+            var oODataModel = this._getODataModel();
+
+            this._flushCurrentEditor();
+            var oBodyPayload = this._buildBodyPayload();
+
+            var sHeaderPath = "/EmailHeader(DbKey=guid'" + sDbKey + "',IsActiveEntity=false)/to_Body";
+
+            return new Promise(function (resolve, reject) {
+                oODataModel.create(sHeaderPath, oBodyPayload, {
+                    success: function (oData) {
+                        resolve(oData);
+                    },
+                    error: function (oError) {
+                        reject(new Error(this._getErrorMessage(oError, "Create Body failed")));
+                    }.bind(this)
+                });
+            }.bind(this));
+        },
+
         _upsertBodyDraft: function () {
             var oModel = this._getODataModel();
             var oCreateModel = this._getCreateModel();
             var sBodyDbKey = oCreateModel.getProperty("/bodyDbKey");
+
+            this._flushCurrentEditor();
+
             var oPayload = this._buildBodyPayload();
 
             if (!sBodyDbKey) {
@@ -247,6 +296,26 @@ sap.ui.define([
                     },
                     error: function (oError) {
                         reject(new Error(this._getErrorMessage(oError, "Update Body failed")));
+                    }.bind(this)
+                });
+            }.bind(this));
+        },
+
+        _activateDraft: function (sDbKey) {
+            var oODataModel = this._getODataModel();
+
+            return new Promise(function (resolve, reject) {
+                oODataModel.callFunction("/EmailHeaderActivate", {
+                    method: "POST",
+                    urlParameters: {
+                        DbKey: sDbKey,
+                        IsActiveEntity: false
+                    },
+                    success: function () {
+                        resolve();
+                    },
+                    error: function (oError) {
+                        reject(new Error(this._getErrorMessage(oError, "Activate failed")));
                     }.bind(this)
                 });
             }.bind(this));
@@ -282,29 +351,23 @@ sap.ui.define([
             };
         },
 
+        // =========================================================
+        // Validation
+        // =========================================================
         _validate: function () {
             var oModel = this._getCreateModel();
             var sTemplateName = this._trim(oModel.getProperty("/templateName"));
-            var sDepartment = this._trim(oModel.getProperty("/department"));
-            var sCategory = this._trim(oModel.getProperty("/category"));
             var sSenderEmail = this._trim(oModel.getProperty("/senderEmail"));
+
+            this._flushCurrentEditor();
             var sBodyHtml = String(oModel.getProperty("/bodyHtml") || "");
+
             var sVersion = this._normalizeVersion(oModel.getProperty("/bodyVersion"));
             var sLineType = this._normalizeLineType(oModel.getProperty("/bodyLineType"));
             var sLanguage = this._normalizeLanguage(oModel.getProperty("/bodyLanguage"));
 
             if (!sTemplateName) {
                 MessageBox.warning("Please enter Template Name");
-                return false;
-            }
-
-            if (!sDepartment) {
-                MessageBox.warning("Please enter Department");
-                return false;
-            }
-
-            if (!sCategory) {
-                MessageBox.warning("Please enter Category");
                 return false;
             }
 
@@ -346,58 +409,204 @@ sap.ui.define([
             return true;
         },
 
-        _createHeader: function (oHeaderPayload) {
-            var oODataModel = this._getODataModel();
-
-            return new Promise(function (resolve, reject) {
-                oODataModel.create("/EmailHeader", oHeaderPayload, {
-                    success: function (oData) {
-                        resolve(oData);
-                    },
-                    error: function (oError) {
-                        reject(new Error(this._getErrorMessage(oError, "Create Header failed")));
-                    }.bind(this)
-                });
-            }.bind(this));
+        onBasicInfoChange: function () {
+            this._updateStepBasicValidation();
         },
 
-        _createBodyDraft: function (sDbKey) {
-            var oODataModel = this._getODataModel();
-            var oBodyPayload = this._buildBodyPayload();
-            var sHeaderPath = "/EmailHeader(DbKey=guid'" + sDbKey + "',IsActiveEntity=false)/to_Body";
+        _updateStepBasicValidation: function () {
+            var oModel = this._getCreateModel();
+            var oStep = this.byId("stepBasic");
+            var oWizard = this.byId("createWizard");
 
-            return new Promise(function (resolve, reject) {
-                oODataModel.create(sHeaderPath, oBodyPayload, {
-                    success: function (oData) {
-                        resolve(oData);
-                    },
-                    error: function (oError) {
-                        reject(new Error(this._getErrorMessage(oError, "Create Body failed")));
-                    }.bind(this)
-                });
-            }.bind(this));
+            if (!oStep || !oWizard) {
+                return;
+            }
+
+            var sTemplateName = this._trim(oModel.getProperty("/templateName"));
+            var sDepartment = this._trim(oModel.getProperty("/department"));
+            var sCategory = this._trim(oModel.getProperty("/category"));
+
+            var bValid = !!(sTemplateName && sDepartment && sCategory);
+
+            oStep.setValidated(bValid);
+
+            if (!bValid) {
+                oWizard.discardProgress(oStep);
+            }
         },
 
-        _activateDraft: function (sDbKey) {
-            var oODataModel = this._getODataModel();
+        onTemplateNameChange: function (oEvent) {
+            var sValue = (oEvent.getParameter("value") || "").trim();
+            var oStep = this.byId("stepBasic");
+            var oWizard = this.byId("createWizard");
 
-            return new Promise(function (resolve, reject) {
-                oODataModel.callFunction("/EmailHeaderActivate", {
-                    method: "POST",
-                    urlParameters: {
-                        DbKey: sDbKey,
-                        IsActiveEntity: false
-                    },
-                    success: function () {
-                        resolve();
-                    },
-                    error: function (oError) {
-                        reject(new Error(this._getErrorMessage(oError, "Activate failed")));
-                    }.bind(this)
-                });
-            }.bind(this));
+            if (!oStep || !oWizard) {
+                return;
+            }
+
+            if (sValue) {
+                oStep.setValidated(true);
+            } else {
+                oStep.setValidated(false);
+                oWizard.discardProgress(oStep);
+            }
         },
 
+        // =========================================================
+        // Preview / Editor Sync
+        // =========================================================
+        onBodyHtmlChange: function (oEvent) {
+            var sHtml = oEvent.getParameter("value");
+            var sCurrent = String(this._getCreateModel().getProperty("/bodyHtml") || "");
+
+            if (typeof sHtml !== "string") {
+                return;
+            }
+
+            if (sHtml === "" && sCurrent) {
+                var sMode = String(this._getCreateModel().getProperty("/editorMode") || "RTE");
+                var sActualEditorValue = this._readEditorValue(sMode);
+
+                if (sActualEditorValue) {
+                    this._updateBodyHtml(sActualEditorValue);
+                    return;
+                }
+
+                return;
+            }
+
+            this._updateBodyHtml(sHtml);
+        },
+
+        onEditorModeChange: function (oEvent) {
+            var sNextMode = oEvent.getParameter("key");
+
+            this._flushCurrentEditor();
+            this._getCreateModel().setProperty("/editorMode", sNextMode);
+
+            setTimeout(function () {
+                this._pushModelToEditors();
+            }.bind(this), 0);
+        },
+
+        onReloadPreviewPress: function () {
+            this._flushCurrentEditor();
+            this.onPreview();
+
+            MessageToast.show("Preview reloaded");
+
+            var oWizard = this.byId("createWizard");
+            var oStepPreview = this.byId("stepPreview");
+
+            if (oWizard && oStepPreview) {
+                oWizard.goToStep(oStepPreview, true);
+            }
+        },
+
+        onPreview: function () {
+            this._flushCurrentEditor();
+
+            var oModel = this._getCreateModel();
+            var sBodyHtml = String(oModel.getProperty("/bodyHtml") || "");
+            oModel.setProperty("/previewHtml", this._buildPreviewContainer(sBodyHtml));
+        },
+
+        _updateBodyHtml: function (sHtml) {
+            var oCreateModel = this._getCreateModel();
+            var aAvailableVariables = oCreateModel.getProperty("/availableVariables") || [];
+            var sNormalizedHtml = String(sHtml || "");
+            var aUsedVariables = this._scanVariablesFromHtml(sNormalizedHtml, aAvailableVariables);
+
+            oCreateModel.setProperty("/bodyHtml", sNormalizedHtml);
+            oCreateModel.setProperty("/bodyPreview", sNormalizedHtml);
+            oCreateModel.setProperty("/usedVariables", aUsedVariables);
+        },
+
+        _flushCurrentEditor: function () {
+            var sMode = String(this._getCreateModel().getProperty("/editorMode") || "RTE");
+            var sHtml = this._readEditorValue(sMode);
+
+            if (typeof sHtml === "string") {
+                this._updateBodyHtml(sHtml);
+            }
+        },
+
+        _readEditorValue: function (sMode) {
+            var oCreateModel = this._getCreateModel();
+            var sFallback = String(oCreateModel.getProperty("/bodyHtml") || "");
+
+            if (sMode === "HTML") {
+                var oCode = this.byId("emailCode");
+                if (oCode && typeof oCode.getValue === "function") {
+                    try {
+                        return String(oCode.getValue() || "");
+                    } catch (e) {
+                        return sFallback;
+                    }
+                }
+                return sFallback;
+            }
+
+            var oRTE = this.byId("emailRTE");
+            if (!oRTE) {
+                return sFallback;
+            }
+
+            try {
+                if (typeof oRTE.getValue === "function") {
+                    var sRteValue = oRTE.getValue();
+                    if (typeof sRteValue === "string" && (sRteValue || !sFallback)) {
+                        return sRteValue;
+                    }
+                }
+
+                var oNativeApi = (typeof oRTE.getNativeApi === "function" && oRTE.getNativeApi()) || null;
+                if (oNativeApi && typeof oNativeApi.getContent === "function") {
+                    var sContent = oNativeApi.getContent();
+                    if (typeof sContent === "string" && (sContent || !sFallback)) {
+                        return sContent;
+                    }
+                }
+            } catch (e) {
+                return sFallback;
+            }
+
+            return sFallback;
+        },
+
+        _pushModelToEditors: function () {
+            var sHtml = String(this._getCreateModel().getProperty("/bodyHtml") || "");
+            var oRTE = this.byId("emailRTE");
+            var oCode = this.byId("emailCode");
+
+            if (oCode && typeof oCode.getValue === "function" && oCode.getValue() !== sHtml) {
+                oCode.setValue(sHtml);
+            }
+
+            if (oRTE && typeof oRTE.getValue === "function" && oRTE.getValue() !== sHtml) {
+                oRTE.setValue(sHtml);
+            }
+        },
+
+        _buildPreviewContainer: function (sBodyHtml) {
+            return [
+                "<div style='background:#ffffff;padding:24px;box-sizing:border-box;border:1px solid #d9d9d9;min-height:300px;overflow:auto;'>",
+                sBodyHtml,
+                "</div>"
+            ].join("");
+        },
+
+        _buildSafePreviewContainer: function (sBodyHtml) {
+            return [
+                "<div style='background:#ffffff;padding:24px;box-sizing:border-box;border:1px solid #d9d9d9;min-height:300px;overflow:auto;white-space:pre-wrap;'>",
+                encodeXML(String(sBodyHtml || "")),
+                "</div>"
+            ].join("");
+        },
+
+        // =========================================================
+        // Variables
+        // =========================================================
         _loadSystemVariables: function () {
             var oDataModel = this._getODataModel();
 
@@ -424,23 +633,6 @@ sap.ui.define([
                     MessageBox.error(this._getErrorMessage(oError, "Failed to load system variables"));
                 }.bind(this)
             });
-        },
-
-        onTemplateNameChange: function (oEvent) {
-            var sValue = (oEvent.getParameter("value") || "").trim();
-            var oStep = this.byId("stepBasic");
-            var oWizard = this.byId("createWizard");
-
-            if (!oStep || !oWizard) {
-                return;
-            }
-
-            if (sValue) {
-                oStep.setValidated(true);
-            } else {
-                oStep.setValidated(false);
-                oWizard.discardProgress(oStep);
-            }
         },
 
         onInsertVariable: function (oEvent) {
@@ -492,6 +684,7 @@ sap.ui.define([
 
                     var sNewValue = oInternalEditor.getValue();
                     this._updateBodyHtml(sNewValue);
+                    this._pushModelToEditors();
 
                     oCodeEditor.focus();
                     MessageToast.show("Variable inserted: " + sToken);
@@ -528,6 +721,8 @@ sap.ui.define([
                             : oRTE.getValue();
 
                         this._updateBodyHtml(sNewValue);
+                        this._pushModelToEditors();
+
                         MessageToast.show("Variable inserted: " + sToken);
                         return;
                     }
@@ -540,31 +735,28 @@ sap.ui.define([
         },
 
         _appendTokenToBody: function (sToken) {
+            this._flushCurrentEditor();
+
             var oCreateModel = this._getCreateModel();
             var sCurrentHtml = String(oCreateModel.getProperty("/bodyHtml") || "");
             var sNewHtml = sCurrentHtml ? (sCurrentHtml + sToken) : sToken;
 
             this._updateBodyHtml(sNewHtml);
-
-            var oCodeEditor = this.byId("emailCode");
-            var oRTE = this.byId("emailRTE");
-
-            if (oCodeEditor) {
-                oCodeEditor.setValue(sNewHtml);
-            }
-            if (oRTE) {
-                oRTE.setValue(sNewHtml);
-            }
+            this._pushModelToEditors();
 
             MessageToast.show("Variable inserted: " + sToken);
         },
 
         onScanVariables: function () {
+            this._flushCurrentEditor();
+
             var sBodyHtml = String(this._getCreateModel().getProperty("/bodyHtml") || "");
             this._updateBodyHtml(sBodyHtml);
         },
 
         onRescanVariables: function () {
+            this._flushCurrentEditor();
+
             var sBodyHtml = String(this._getCreateModel().getProperty("/bodyHtml") || "");
             this._updateBodyHtml(sBodyHtml);
             MessageToast.show("Variables rescanned");
@@ -599,38 +791,9 @@ sap.ui.define([
             });
         },
 
-        _updateBodyHtml: function (sHtml) {
-            var oCreateModel = this._getCreateModel();
-            var aAvailableVariables = oCreateModel.getProperty("/availableVariables") || [];
-            var aUsedVariables = this._scanVariablesFromHtml(sHtml, aAvailableVariables);
-
-            oCreateModel.setProperty("/bodyHtml", sHtml);
-            oCreateModel.setProperty("/bodyPreview", sHtml);
-            oCreateModel.setProperty("/usedVariables", aUsedVariables);
-        },
-
-        onPreview: function () {
-            var oModel = this._getCreateModel();
-            var sBodyHtml = String(oModel.getProperty("/bodyHtml") || "");
-            oModel.setProperty("/previewHtml", this._buildPreviewContainer(sBodyHtml));
-        },
-
-        _buildPreviewContainer: function (sBodyHtml) {
-            return [
-                "<div style='background:#ffffff;padding:24px;box-sizing:border-box;border:1px solid #d9d9d9;min-height:300px;overflow:auto;'>",
-                sBodyHtml,
-                "</div>"
-            ].join("");
-        },
-
-        _buildSafePreviewContainer: function (sBodyHtml) {
-            return [
-                "<div style='background:#ffffff;padding:24px;box-sizing:border-box;border:1px solid #d9d9d9;min-height:300px;overflow:auto;white-space:pre-wrap;'>",
-                encodeXML(String(sBodyHtml || "")),
-                "</div>"
-            ].join("");
-        },
-
+        // =========================================================
+        // Form Helpers
+        // =========================================================
         _resetForm: function () {
             var oModel = this._getCreateModel();
 
@@ -664,6 +827,9 @@ sap.ui.define([
             });
         },
 
+        // =========================================================
+        // Utility
+        // =========================================================
         _normalizeLanguage: function (vLanguage) {
             return this._trim(vLanguage).toUpperCase().slice(0, 2);
         },
@@ -693,6 +859,9 @@ sap.ui.define([
             }
         },
 
+        // =========================================================
+        // Navigation / Cancel
+        // =========================================================
         onCancelPress: function () {
             var oModel = this._getCreateModel();
             var sMode = oModel.getProperty("/mode");
@@ -721,6 +890,6 @@ sap.ui.define([
 
         _navBackToList: function () {
             this.getOwnerComponent().getRouter().navTo("templatelist");
-        },
+        }
     });
 });

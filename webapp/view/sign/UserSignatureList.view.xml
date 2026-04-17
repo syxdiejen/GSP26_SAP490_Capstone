@@ -1,0 +1,149 @@
+<mvc:View
+    controllerName="zemail.template.app.controller.sign.UserSignatureList"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns="sap.m"
+    xmlns:core="sap.ui.core"
+    xmlns:f="sap.f">
+
+    <f:DynamicPage id="signListPage">
+        <f:title>
+            <f:DynamicPageTitle>
+                <f:heading>
+                    <Title text="User Signatures" level="H1" />
+                </f:heading>
+
+                <f:expandedContent>
+                    <Label text="Manage your email signatures." />
+                </f:expandedContent>
+
+                <f:actions>
+                    <Button
+                        text="Create"
+                        type="Emphasized"
+                        icon="sap-icon://add"
+                        press=".onCreatePress" />
+                </f:actions>
+            </f:DynamicPageTitle>
+        </f:title>
+
+        <f:header>
+            <f:DynamicPageHeader pinnable="true">
+                <HBox alignItems="Center" wrap="Wrap">
+                    <SearchField
+                        id="searchField"
+                        width="320px"
+                        placeholder="Search by Signature Name"
+                        liveChange=".onSearch"
+                        class="sapUiSmallMarginEnd sapUiSmallMarginBottom" />
+
+                    <Label
+                        text="Type"
+                        class="sapUiSmallMarginBegin sapUiSmallMarginEnd sapUiSmallMarginBottom" />
+
+                    <Select
+                        id="defaultFilter"
+                        width="180px"
+                        change=".onDefaultChange"
+                        class="sapUiSmallMarginEnd sapUiSmallMarginBottom">
+                        <items>
+                            <core:Item key="ALL" text="All" />
+                            <core:Item key="DEFAULT" text="Default" />
+                            <core:Item key="NONDEFAULT" text="Non Default" />
+                            <core:Item key="DRAFT" text="Draft" />
+                        </items>
+                    </Select>
+
+                    <Button
+                        text="Go"
+                        type="Emphasized"
+                        icon="sap-icon://search"
+                        press=".onGoPress"
+                        class="sapUiSmallMarginBottom" />
+                </HBox>
+            </f:DynamicPageHeader>
+        </f:header>
+
+        <f:content>
+            <Table
+                id="signatureTable"
+                sticky="ColumnHeaders,HeaderToolbar"
+                mode="SingleSelectMaster"
+                growing="true"
+                growingScrollToLoad="true"
+                inset="false"
+                items="{sign>/UserSignature}">
+
+                <headerToolbar>
+                    <OverflowToolbar>
+                        <Title text="Signatures" level="H2" />
+                    </OverflowToolbar>
+                </headerToolbar>
+
+                <columns>
+                    <Column minScreenWidth="Tablet" demandPopin="true">
+                        <Text text="Signature Name" />
+                    </Column>
+
+                    <Column width="8rem" hAlign="Center">
+                        <Text text="Default" />
+                    </Column>
+
+                    <Column minScreenWidth="Tablet" demandPopin="true">
+                        <Text text="Owner" />
+                    </Column>
+
+                    <Column minScreenWidth="Tablet" demandPopin="true">
+                        <Text text="Last Changed" />
+                    </Column>
+
+                    <Column minScreenWidth="Tablet" demandPopin="true" hAlign="End">
+                        <Text text="Actions" />
+                    </Column>
+                </columns>
+
+                <items>
+                    <ColumnListItem type="Navigation" press=".onItemPress">
+                        <cells>
+                            <VBox>
+                                <HBox alignItems="Center" wrap="Wrap">
+                                    <Text text="{sign>SignName}" wrapping="false" />
+
+                                    <ObjectStatus
+                                        text="Draft"
+                                        state="Information"
+                                        visible="{= ${sign>IsActiveEntity} === false }"
+                                        class="sapUiTinyMarginBegin" />
+
+                                    <ObjectStatus
+                                        text="Default"
+                                        state="Success"
+                                        visible="{= ${sign>IsDefault} === true }"
+                                        class="sapUiTinyMarginBegin" />
+                                </HBox>
+
+                                <Text
+                                    text="Unsaved Changes"
+                                    visible="{= ${sign>HasDraftEntity} === true &amp;&amp; ${sign>IsActiveEntity} === true }"
+                                    class="sapUiTinyMarginTop sapUiTinyMarginBottom"
+                                    wrapping="false" />
+                            </VBox>
+
+                            <ObjectStatus
+                                text="{= ${sign>IsDefault} ? 'Yes' : 'No' }"
+                                state="{= ${sign>IsDefault} ? 'Success' : 'None' }" />
+
+                            <Text text="{sign>OwnerId}" />
+
+                            <Text text="{sign>LastChangedAt}" />
+
+                            <HBox justifyContent="End">
+                                <Button icon="sap-icon://edit" type="Transparent" press=".onEditPress" />
+                                <Button icon="sap-icon://delete" type="Transparent" press=".onDeletePress" />
+                            </HBox>
+                        </cells>
+                    </ColumnListItem>
+                </items>
+            </Table>
+        </f:content>
+    </f:DynamicPage>
+</mvc:View>

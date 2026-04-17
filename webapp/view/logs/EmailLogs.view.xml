@@ -13,6 +13,10 @@
                 <f:heading>
                     <Title text="Email Logs" />
                 </f:heading>
+
+                <f:expandedContent>
+                    <Label text="View and track email delivery logs across the system." />
+                </f:expandedContent>
             </f:DynamicPageTitle>
         </f:title>
 
@@ -36,10 +40,10 @@
                         <fb:FilterGroupItem name="Status" label="Status" groupName="Main" visibleInFilterBar="true">
                             <fb:control>
                                 <MultiComboBox id="mcbStatus" selectionFinish=".onSearch">
-                                    <core:Item key="S" text="Sent" />
-                                    <core:Item key="F" text="Failed" />
+                                    <core:Item key="O" text="Sent" />
+                                    <core:Item key="E" text="Failed" />
                                     <core:Item key="P" text="Pending" />
-                                    <core:Item key="O" text="Processed" />
+                                    <core:Item key="S" text="Processed" />
                                 </MultiComboBox>
                             </fb:control>
                         </fb:FilterGroupItem>
@@ -76,8 +80,7 @@
                 <columns>
                     <Column><Text text="Status" /></Column>
                     <Column><Text text="Template" /></Column>
-                    <Column><Text text="Object Type" /></Column>
-                    <Column><Text text="Object Key" /></Column>
+                    <Column><Text text="Recipient" /></Column>
                     <Column><Text text="Sent By" /></Column>
                     <Column><Text text="Sent At" /></Column>
                     <Column><Text text="File" /></Column>
@@ -91,11 +94,13 @@
                                 text="{vm>StatusText}"
                                 state="{vm>StatusState}" />
                             <Text text="{vm>TemplateId}" />
-                            <Text text="{vm>ObjType}" />
-                            <Text text="{vm>ObjKey}" />
+                            <Text text="{vm>Recipient}" />
                             <Text text="{vm>SentBy}" />
                             <Text text="{vm>SentAtText}" />
-                            <Text text="{vm>FileName}" />
+                            <Link
+                                text="{vm>FileName}"
+                                press=".onOpenAttachment"
+                                visible="{= !!${vm>FileName} }" />
                             <Button
                                 text="View Detail"
                                 type="Transparent"

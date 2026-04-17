@@ -65,6 +65,9 @@ sap.ui.define([
 
             oODataModel.read("/EmailLog", {
                 filters: aFilters || [],
+                urlParameters: {
+                    "$expand": "to_Attachments,to_Details"
+                },
                 success: function (oData) {
                     const aResults = (oData && oData.results) || [];
                     const aMapped = aResults.map(this._mapHeaderLog.bind(this));
@@ -72,10 +75,9 @@ sap.ui.define([
                     oVM.setProperty("/logs", aMapped);
                     this._oBusy.close();
                 }.bind(this),
-                error: function (oError) {
+                error: function () {
                     this._oBusy.close();
                     MessageBox.error("Không tải được Email Logs từ OData service.");
-                    // optional: console.error(oError);
                 }.bind(this)
             });
         },
@@ -84,11 +86,16 @@ sap.ui.define([
             const sStatusCode = oItem.Status || "";
             const oStatusInfo = this._mapStatus(sStatusCode);
 
+            const aAttachments = (oItem.to_Attachments && oItem.to_Attachments.results) || [];
+            const oFirstAttachment = aAttachments[0] || null;
+
+            const aDetails = (oItem.to_Details && oItem.to_Details.results) || [];
+
+            const oRecipients = this._groupRecipients(aDetails);
+
             return {
                 RunId: oItem.RunId,
                 TemplateId: oItem.TemplateId || "",
-                ObjKey: oItem.ObjKey || "",
-                ObjType: oItem.ObjType || "",
                 SentBy: oItem.SentBy || "",
                 SentDate: oItem.SentDate || null,
                 SentTime: oItem.SentTime || "",
@@ -96,64 +103,215 @@ sap.ui.define([
                 Status: sStatusCode,
                 StatusText: oStatusInfo.text,
                 StatusState: oStatusInfo.state,
-                MimeType: oItem.MimeType || "",
-                FileName: oItem.FileName || ""
+
+                RawContent: oItem.RawContent || "",
+                ComposeContent: oItem.ComposeContent || "",
+
+                Details: aDetails,
+                Recipient: oRecipients.to || oRecipients.summary,
+                RecipientTo: oRecipients.to,
+                RecipientCc: oRecipients.cc,
+                RecipientBcc: oRecipients.bcc,
+
+                Attachments: aAttachments,
+                FileId: oFirstAttachment ? oFirstAttachment.FileId : null,
+                MimeType: oFirstAttachment ? (oFirstAttachment.MimeType || "") : "",
+                FileName: oFirstAttachment ? (oFirstAttachment.FileName || "") : ""
             };
         },
 
         _mapStatus: function (sStatus) {
             switch (sStatus) {
-                case "S":
+                case "O":
                     return { text: "Sent", state: "Success" };
-                case "F":
+                case "E":
                     return { text: "Failed", state: "Error" };
                 case "P":
                     return { text: "Pending", state: "Warning" };
-                case "O":
-                    return { text: "Processed", state: "Information" };
+                // case "O":
+                //     return { text: "Processed", state: "Information" };
                 default:
                     return { text: sStatus || "Unknown", state: "None" };
             }
         },
 
-        _formatSentAt: function (sDate, sDuration) {
-            if (!sDate) {
+        _groupRecipients: function (aDetails) {
+            const aTo = [];
+            const aCc = [];
+            const aBcc = [];
+            const aOther = [];
+
+            (aDetails || []).forEach(function (oItem) {
+                const sEmail = (oItem.Recipient || "").trim();
+                const sType = (oItem.RecType || "").toUpperCase().trim();
+
+                if (!sEmail) {
+                    return;
+                }
+
+                switch (sType) {
+                    case "TO":
+                        if (!aTo.includes(sEmail)) {
+                            aTo.push(sEmail);
+                        }
+                        break;
+                    case "CC":
+                        if (!aCc.includes(sEmail)) {
+                            aCc.push(sEmail);
+                        }
+                        break;
+                    case "BCC":
+                        if (!aBcc.includes(sEmail)) {
+                            aBcc.push(sEmail);
+                        }
+                        break;
+                    default:
+                        if (!aOther.includes(sEmail)) {
+                            aOther.push(sEmail);
+                        }
+                        break;
+                }
+            });
+
+            const aSummaryParts = [];
+
+            if (aTo.length) {
+                aSummaryParts.push("TO: " + aTo.join(", "));
+            }
+            if (aCc.length) {
+                aSummaryParts.push("CC: " + aCc.join(", "));
+            }
+            if (aBcc.length) {
+                aSummaryParts.push("BCC: " + aBcc.join(", "));
+            }
+            if (aOther.length) {
+                aSummaryParts.push(aOther.join(", "));
+            }
+
+            return {
+                to: aTo.join(", "),
+                cc: aCc.join(", "),
+                bcc: aBcc.join(", "),
+                summary: aSummaryParts.join(" | ")
+            };
+        },
+
+        _formatSentAt: function (vDate, vTime) {
+            if (!vDate) {
                 return "-";
             }
 
-            const oDate = new Date(sDate);
-            if (isNaN(oDate.getTime())) {
-                return sDate;
+            let oDate = null;
+
+            // OData V2 Date string: /Date(1711929600000)/
+            if (typeof vDate === "string" && vDate.indexOf("/Date(") === 0) {
+                oDate = new Date(parseInt(vDate.replace(/[^0-9]/g, ""), 10));
+            }
+            // JS Date object
+            else if (vDate instanceof Date) {
+                oDate = vDate;
+            }
+            // OData date object or other object forms
+            else if (typeof vDate === "object") {
+                if (vDate.ms !== undefined) {
+                    oDate = new Date(vDate.ms);
+                } else if (vDate.__edmType === "Edm.DateTime" && vDate.value) {
+                    oDate = new Date(vDate.value);
+                } else {
+                    oDate = new Date(vDate);
+                }
+            }
+            // fallback
+            else {
+                oDate = new Date(vDate);
             }
 
-            const sTime = this._durationToTime(sDuration);
-            const sDateText = oDate.toLocaleDateString("en-GB");
+            if (!oDate || isNaN(oDate.getTime())) {
+                return "-";
+            }
 
-            return sTime ? (sDateText + " " + sTime) : sDateText;
+            const sTime = this._durationToTime(vTime);
+
+            const sDay = String(oDate.getDate()).padStart(2, "0");
+            const sMonth = String(oDate.getMonth() + 1).padStart(2, "0");
+            const sYear = oDate.getFullYear();
+
+            return sTime
+                ? (sTime + ", " + sDay + "/" + sMonth + "/" + sYear)
+                : (sDay + "/" + sMonth + "/" + sYear);
         },
 
-        _durationToTime: function (sDuration) {
-            if (!sDuration) {
+        onOpenAttachment: function (oEvent) {
+            const oContext = oEvent.getSource().getBindingContext("vm");
+
+            if (!oContext) {
+                return;
+            }
+
+            const oLog = oContext.getObject();
+
+            if (!oLog.RunId || oLog.FileId === null || oLog.FileId === undefined) {
+                MessageToast.show("Không có file đính kèm.");
+                return;
+            }
+
+            const sServiceUrl = this.getODataModel().sServiceUrl;
+            const sUrl =
+                sServiceUrl +
+                "/AttachmentLogs(RunId=guid'" +
+                oLog.RunId +
+                "',FileId=" +
+                oLog.FileId +
+                ")/$value";
+
+            window.open(sUrl, "_blank");
+        },
+
+        _durationToTime: function (vDuration) {
+            if (!vDuration) {
                 return "";
             }
 
-            const aMatch = /PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/.exec(sDuration);
-            if (!aMatch) {
-                return sDuration;
+            // OData V2 Edm.Time thường có dạng { ms: 49541000, __edmType: "Edm.Time" }
+            if (typeof vDuration === "object") {
+                if (vDuration.ms !== undefined) {
+                    const iTotalSeconds = Math.floor(vDuration.ms / 1000);
+                    const iHours = Math.floor(iTotalSeconds / 3600);
+                    const iMinutes = Math.floor((iTotalSeconds % 3600) / 60);
+                    const iSeconds = iTotalSeconds % 60;
+
+                    return [
+                        String(iHours).padStart(2, "0"),
+                        String(iMinutes).padStart(2, "0"),
+                        String(iSeconds).padStart(2, "0")
+                    ].join(":");
+                }
+
+                return "";
             }
 
-            const sHours = String(parseInt(aMatch[1] || "0", 10)).padStart(2, "0");
-            const sMinutes = String(parseInt(aMatch[2] || "0", 10)).padStart(2, "0");
-            const sSeconds = String(parseInt(aMatch[3] || "0", 10)).padStart(2, "0");
+            if (typeof vDuration === "string") {
+                const aMatch = /PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/.exec(vDuration);
 
-            return sHours + ":" + sMinutes + ":" + sSeconds;
+                if (aMatch) {
+                    const sHours = String(parseInt(aMatch[1] || "0", 10)).padStart(2, "0");
+                    const sMinutes = String(parseInt(aMatch[2] || "0", 10)).padStart(2, "0");
+                    const sSeconds = String(parseInt(aMatch[3] || "0", 10)).padStart(2, "0");
+
+                    return sHours + ":" + sMinutes + ":" + sSeconds;
+                }
+
+                return vDuration;
+            }
+
+            return "";
         },
 
         onSearch: function () {
             const aFilters = this._buildFilters();
             this._loadEmailLogs(aFilters);
         },
-
+        
         _buildFilters: function () {
             const oView = this.getView();
             const aFilters = [];
@@ -165,7 +323,7 @@ sap.ui.define([
             const sRecipient = (oSearchField.getValue() || "").trim();
             const aStatuses = oStatusBox.getSelectedKeys();
             const dFrom = oDateRange.getDateValue();
-            const dTo = oDateRange.getSecondDateValue() || dFrom;
+            const dTo = oDateRange.getSecondDateValue();
 
             if (sRecipient) {
                 aFilters.push(new Filter("Recipient", FilterOperator.Contains, sRecipient));
@@ -183,16 +341,19 @@ sap.ui.define([
                 }));
             }
 
-            if (dFrom) {
+            if (dFrom && dTo) {
                 const dStart = new Date(dFrom);
                 dStart.setHours(0, 0, 0, 0);
-                aFilters.push(new Filter("SentDate", FilterOperator.GE, dStart));
-            }
 
-            if (dTo) {
                 const dEnd = new Date(dTo);
-                dEnd.setHours(23, 59, 59, 999);
-                aFilters.push(new Filter("SentDate", FilterOperator.LE, dEnd));
+                dEnd.setHours(0, 0, 0, 0);
+
+                aFilters.push(new Filter("SentDate", FilterOperator.BT, dStart, dEnd));
+            } else if (dFrom) {
+                const dSingle = new Date(dFrom);
+                dSingle.setHours(0, 0, 0, 0);
+
+                aFilters.push(new Filter("SentDate", FilterOperator.EQ, dSingle));
             }
 
             return aFilters;
@@ -247,9 +408,12 @@ sap.ui.define([
         },
 
         _openDetailDialog: function (oLog, aDetails) {
-            const sFirstRecipient = aDetails[0]?.Recipient || "-";
+            const oRecipients = this._groupRecipients(aDetails);
+
             const sFirstMessage = aDetails[0]?.MsgVar1 || "";
-            const sContent = aDetails[0]?.Content || "No detail content available.";
+            const sHtmlContent = oLog.ComposeContent || "";
+            const sPlainContent = oLog.RawContent || aDetails[0]?.Content || "No detail content available.";
+            const bHasHtmlContent = !!sHtmlContent;
 
             if (!this._oDetailDialog) {
                 this._oDetailDialog = new Dialog({
@@ -270,52 +434,80 @@ sap.ui.define([
                 this.getView().addDependent(this._oDetailDialog);
             }
 
-            const aContent = [
+            const aItems = [
+                new Title({ text: "General Information", level: "H4" }),
+
+                this._buildInfoRow("Template ID:", oLog.TemplateId || "-"),
+                this._buildInfoRow("Status:", oLog.StatusText || "-"),
+                this._buildInfoRow("Sent At:", oLog.SentAtText || "-"),
+                this._buildInfoRow("TO:", oRecipients.to || "-"),
+                this._buildInfoRow("CC:", oRecipients.cc || "-"),
+                this._buildInfoRow("BCC:", oRecipients.bcc || "-"),
+                this._buildInfoRow("File:", oLog.FileName || "-"),
+
+                new Title({ text: "Content", level: "H4" }).addStyleClass("sapUiMediumMarginTop")
+            ];
+
+            if (bHasHtmlContent) {
+                aItems.push(
+                    new HTML({
+                        content:
+                            "<div style='padding:0.75rem;border:1px solid var(--sapList_BorderColor);border-radius:0.75rem;max-height:220px;overflow:auto;background:var(--sapGroup_ContentBackground);'>" +
+                            sHtmlContent +
+                            "</div>"
+                    })
+                );
+            } else {
+                aItems.push(
+                    new HTML({
+                        content:
+                            "<div style='padding:0.75rem;border:1px solid var(--sapList_BorderColor);border-radius:0.75rem;max-height:220px;overflow:auto;white-space:pre-wrap;word-break:break-word;background:var(--sapGroup_ContentBackground);'>" +
+                            this._escapeHtml(sPlainContent) +
+                            "</div>"
+                    })
+                );
+            }
+
+            aItems.push(
+                new Title({ text: "Message", level: "H4" }).addStyleClass("sapUiMediumMarginTop"),
+                new MessageStrip({
+                    text: sFirstMessage || "No message available.",
+                    type: oLog.StatusState === "Error" ? "Error" : "Information",
+                    showIcon: true
+                }).addStyleClass("sapUiSmallMarginBottom")
+            );
+
+            this._oDetailDialog.removeAllContent();
+            this._oDetailDialog.addContent(
                 new VBox({
                     width: "100%",
                     items: [
-                        new Title({ text: "General Information", level: "H4" }),
-
-                        this._buildInfoRow("Run ID:", oLog.RunId),
-                        this._buildInfoRow("Template ID:", oLog.TemplateId || "-"),
-                        this._buildInfoRow("Status:", oLog.StatusText || "-"),
-                        this._buildInfoRow("Sent At:", oLog.SentAtText || "-"),
-                        this._buildInfoRow("Recipient:", sFirstRecipient),
-                        this._buildInfoRow("File:", oLog.FileName || "-"),
-
-                        new Title({ text: "Message", level: "H4" }).addStyleClass("sapUiMediumMarginTop"),
-                        new MessageStrip({
-                            text: sFirstMessage || "No message available.",
-                            type: oLog.StatusState === "Error" ? "Error" : "Information",
-                            showIcon: true
-                        }).addStyleClass("sapUiSmallMarginBottom"),
-
-                        new Title({ text: "Content", level: "H4" }),
-                        new HTML({
-                            content:
-                                "<div style='padding:0.75rem;border:1px solid var(--sapList_BorderColor);border-radius:0.75rem;max-height:220px;overflow:auto;white-space:pre-wrap;word-break:break-word;background:var(--sapGroup_ContentBackground);'>" +
-                                this._escapeHtml(sContent) +
-                                "</div>"
-                        })
+                        new VBox({
+                            width: "100%",
+                            items: aItems
+                        }).addStyleClass("sapUiResponsiveContentPadding")
                     ]
                 })
-            ];
-
-            this._oDetailDialog.removeAllContent();
-            aContent.forEach(function (oItem) {
-                this._oDetailDialog.addContent(oItem);
-            }.bind(this));
+            );
 
             this._oDetailDialog.open();
         },
 
         _buildInfoRow: function (sLabel, sValue) {
             return new HBox({
+                alignItems: "Start",
                 items: [
-                    new Label({ text: sLabel, width: "120px" }),
-                    new Text({ text: sValue || "-" })
+                    new Label({
+                        text: sLabel,
+                        width: "130px"
+                    }).addStyleClass("sapUiTinyMarginEnd"),
+
+                    new Text({
+                        text: sValue || "-",
+                        wrapping: true
+                    }).addStyleClass("sapUiSmallMarginBottom")
                 ]
-            }).addStyleClass("sapUiSmallMarginBottom");
+            }).addStyleClass("sapUiTinyMarginBottom");
         },
 
         _escapeHtml: function (sText) {

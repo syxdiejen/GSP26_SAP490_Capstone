@@ -81,6 +81,14 @@ sap.ui.define(
           "ui",
         );
 
+        this.getView().setModel(
+          new JSONModel({
+            items: [],
+            selectedKey: ""
+          }),
+          "signature"
+        );
+
         this.getOwnerComponent()
           .getRouter()
           .getRoute("detail")
@@ -165,6 +173,7 @@ sap.ui.define(
             MessageBox.error("Không tải được dữ liệu detail template.");
           },
         });
+        this._loadSignatures();
       },
 
       _loadBodyVariables: function (sBodyContent) {
@@ -190,6 +199,23 @@ sap.ui.define(
         this.getView().getModel("variables").setData({ items: vars });
       },
 
+      _loadSignatures: function () {
+        var oModel = this.getOwnerComponent().getModel();
+        var oSigModel = this.getView().getModel("signature");
+
+        oModel.read("/UserSignature", {
+          urlParameters: {
+            "$format": "json"
+          },
+          success: function (oData) {
+            oSigModel.setProperty("/items", oData.results || []);
+          },
+          error: function () {
+            sap.m.MessageToast.show("Không tải được danh sách chữ ký");
+          }
+        });
+      },
+
       onApplyVariablesPress: function () {
         var oPreview = this.getView().getModel("preview");
         var vars =
@@ -210,6 +236,55 @@ sap.ui.define(
         oPreview.setProperty("/BodyContentPreview", sSafeContent); // Preview thì bắt buộc bọc
 
         sap.m.MessageToast.show("Đã apply biến");
+      },
+
+      onInsertSignature: function () {
+        var oSigModel = this.getView().getModel("signature");
+        var aItems = oSigModel.getProperty("/items") || [];
+        var sSelectedKey = oSigModel.getProperty("/selectedKey");
+
+        if (!sSelectedKey) {
+          sap.m.MessageBox.warning("Vui lòng chọn chữ ký");
+          return;
+        }
+
+        var oSelected = aItems.find(function (oItem) {
+          return oItem.SignId === sSelectedKey;
+        });
+
+        if (!oSelected || !oSelected.Content) {
+          sap.m.MessageBox.warning("Không tìm thấy nội dung chữ ký");
+          return;
+        }
+
+        var sSignature = oSelected.Content;
+        var sCurrentMode = this.getView().getModel("ui").getProperty("/bodyEditMode");
+        var sCurrentValue = "";
+
+        if (sCurrentMode === "visual") {
+          sCurrentValue = this.byId("bodyVisualEditor").getValue() || "";
+        } else if (sCurrentMode === "html") {
+          sCurrentValue = this.byId("htmlSourceEditor").getValue() || "";
+        }
+
+        if (sCurrentValue.indexOf(sSignature) !== -1) {
+          sap.m.MessageToast.show("Chữ ký đã tồn tại trong nội dung");
+          return;
+        }
+
+        var sNewValue = sCurrentValue
+          ? sCurrentValue + "<br><br>" + sSignature
+          : sSignature;
+
+        var oPreviewModel = this.getView().getModel("preview");
+        oPreviewModel.setProperty("/BodyContentEdit", sNewValue);
+        oPreviewModel.setProperty("/BodyContent", sNewValue);
+        oPreviewModel.setProperty(
+          "/BodyContentPreview",
+          "<div class='safe-preview-wrapper'>" + sNewValue + "</div>"
+        );
+
+        sap.m.MessageToast.show("Đã chèn chữ ký");
       },
 
       onResetBodyPress: function () {

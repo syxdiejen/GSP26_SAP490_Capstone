@@ -20,17 +20,17 @@
 
         <f:content>
             <Wizard id="createWizard">
-                
+
                 <WizardStep id="stepBasic" title="Basic Information" validated="false">
                     <form:SimpleForm editable="true" layout="ResponsiveGridLayout">
                         <Label text="Template Name" />
-                        <Input value="{create>/templateName}" required="true" liveChange=".onTemplateNameChange"/>
+                        <Input id="templateNameInput" value="{create>/templateName}" required="true" liveChange=".onTemplateNameChange"/>
 
                         <Label text="Department" />
-                        <Input value="{create>/department}" />
+                        <Input id="departmentInput" value="{create>/department}" required="true"/>
 
-                        <Label text="Category" />
-                        <Select selectedKey="{create>/category}">
+                        <Label id="categorySelect" text="Category" />
+                        <Select selectedKey="{create>/category}" required="true">
                             <core:Item key="Sales" text="" />
                             <core:Item key="Marketing" text="Marketing" />
                             <core:Item key="System" text="System" />
@@ -42,9 +42,11 @@
                 </WizardStep>
 
                 <WizardStep id="stepContent" title="Email Content" validated="true">
-                     <l:Grid defaultSpan="XL8 L8 M12 S12">
+                    <l:Grid defaultSpan="XL8 L8 M12 S12">
                         <VBox width="100%">
-                            <SegmentedButton selectedKey="{create>/editorMode}">
+                            <SegmentedButton
+                                selectedKey="{create>/editorMode}"
+                                selectionChange=".onEditorModeChange">
                                 <items>
                                     <SegmentedButtonItem key="RTE" text="Rich Text"/>
                                     <SegmentedButtonItem key="HTML" text="HTML Code"/>

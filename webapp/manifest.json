@@ -117,6 +117,21 @@
 			"pattern": "sysvar/{VarId}/{IsActiveEntity}",
 			"name": "SystemVariableObject",
 			"target": "SystemVariableObject"
+		},
+		{
+			"name": "signlist",
+			"pattern": "signlist",
+			"target": "signlist"
+		},
+		{
+			"name": "signobject",
+			"pattern": "signobject/{SignId}/{IsActiveEntity}",
+			"target": "signobject"
+		},
+		{
+			"name": "signcreate",
+			"pattern": "signcreate",
+			"target": "signobject"
 		}
 		
 		],
@@ -148,6 +163,14 @@
 			"SystemVariableObject": {
 				"id": "SystemVariableObject",
 				"name": "variable.SystemVariableObject"
+			},
+			"signlist": {
+				"viewName": "sign.UserSignatureList",
+				"viewType": "XML"
+			},
+				"signobject": {
+				"viewName": "sign.UserSignatureObject",
+				"viewType": "XML"
 			}
 		}
 	},

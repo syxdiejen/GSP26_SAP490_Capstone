@@ -46,6 +46,11 @@
                     text="System Variables" 
                     key="variablelist"
                     icon="sap-icon://action-settings" />
+
+                <tnt:NavigationListItem 
+                    text="Signatures" 
+                    key="signlist"
+                    icon="sap-icon://signature" />
                     
             </tnt:NavigationList> 
         </tnt:SideNavigation> 

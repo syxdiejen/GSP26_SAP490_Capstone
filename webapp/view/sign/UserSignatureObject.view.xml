@@ -1,0 +1,111 @@
+<mvc:View
+    controllerName="zemail.template.app.controller.sign.UserSignatureObject"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns="sap.m"
+    xmlns:f="sap.f"
+    xmlns:form="sap.ui.layout.form"
+    xmlns:rte="sap.ui.richtexteditor">
+
+    <f:DynamicPage id="signObjectPage">
+        <f:title>
+            <f:DynamicPageTitle>
+                <f:heading>
+                    <Title text="{viewState>/title}" level="H1" />
+                </f:heading>
+
+                <f:actions>
+                    <Button
+                        text="Save as Draft"
+                        type="Emphasized"
+                        icon="sap-icon://save"
+                        press=".onSavePress" />
+
+                    <Button
+                        text="Publish"
+                        type="Accept"
+                        icon="sap-icon://activate"
+                        press=".onActivatePress"
+                        visible="{= ${sign>IsActiveEntity} === false }" />
+
+                    <Button
+                        text="Delete"
+                        type="Reject"
+                        icon="sap-icon://delete"
+                        press=".onDeletePress"
+                        visible="{= !!${sign>SignId} }" />
+
+                    <Button
+                        text="Cancel"
+                        type="Transparent"
+                        press=".onCancelPress" />
+                </f:actions>
+            </f:DynamicPageTitle>
+        </f:title>
+
+        <f:content>
+            <VBox class="sapUiContentPadding">
+                <Panel
+                    headerText="General Information"
+                    expandable="false"
+                    class="sapUiResponsiveMargin">
+
+                    <form:SimpleForm
+                        editable="true"
+                        layout="ResponsiveGridLayout"
+                        labelSpanXL="3"
+                        labelSpanL="3"
+                        labelSpanM="4"
+                        labelSpanS="12"
+                        adjustLabelSpan="false"
+                        emptySpanXL="4"
+                        emptySpanL="4"
+                        emptySpanM="0"
+                        emptySpanS="0"
+                        columnsXL="1"
+                        columnsL="1"
+                        columnsM="1">
+
+                        <Label text="Signature ID" />
+                        <Input value="{SignId}" editable="false" />
+
+                        <Label text="Signature Name" required="true" />
+                        <Input
+                            value="{SignName}"
+                            placeholder="Enter signature name"
+                            liveChange=".onSignNameChange" />
+
+                        <Label text="Default Signature" />
+                        <Switch
+                            state="{IsDefault}"
+                            customTextOn="Yes"
+                            customTextOff="No" />
+
+                        <Label text="Owner" />
+                        <Input value="{OwnerId}" editable="false" />
+                    </form:SimpleForm>
+                </Panel>
+
+                <Panel
+                    headerText="Signature Content"
+                    expandable="false"
+                    class="sapUiResponsiveMargin sapUiSmallMarginTop">
+
+                    <VBox class="sapUiSmallMargin">
+                        <rte:RichTextEditor
+                            id="signatureEditor"
+                            width="100%"
+                            height="350px"
+                            value="{Content}"
+                            editable="true"
+                            sanitizeValue="false"
+                            showGroupFont="true"
+                            showGroupLink="true"
+                            showGroupInsert="true"
+                            showGroupStructure="true"
+                            showGroupTextAlign="true" />
+                    </VBox>
+                </Panel>
+            </VBox>
+        </f:content>
+    </f:DynamicPage>
+</mvc:View>

@@ -79,6 +79,23 @@
                                         <core:CustomData key="key" value="source" />
                                     </customData>
                                 </Button>
+
+                                <Label text="Signature" class="sapUiSmallMarginTop" />
+
+                                <Select
+                                    selectedKey="{signature>/selectedKey}"
+                                    items="{signature>/items}"
+                                    width="100%">
+                                    <core:Item
+                                        key="{signature>SignId}"
+                                        text="{signature>SignName}" />
+                                </Select>
+
+                                <Button
+                                    text="Insert Signature"
+                                    icon="sap-icon://add-document"
+                                    class="sapUiSmallMarginTop"
+                                    press=".onInsertSignature" />
                             </VBox>
 
                             <!-- CONTENT -->

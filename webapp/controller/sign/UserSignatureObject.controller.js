@@ -30,16 +30,8 @@ sap.ui.define([
     },
 
     _onCreateMatched: function () {
-      var oJson = new JSONModel({
-        SignId: "",
-        OwnerId: "",
-        SignName: "",
-        IsDefault: false,
-        Content: "",
-        IsActiveEntity: false
-      });
+      this.getView().unbindElement();
 
-      this.getView().setModel(oJson, "sign");
       this.getView().getModel("viewState").setData({
         title: "Create Signature",
         isCreate: true
@@ -47,124 +39,210 @@ sap.ui.define([
     },
 
     _onObjectMatched: function (oEvent) {
-        var oArgs = oEvent.getParameter("arguments");
-        var sSignId = decodeURIComponent(oArgs.SignId || "");
-        var bIsActiveEntity = oArgs.IsActiveEntity === "true";
-        var oModel = this.getOwnerComponent().getModel();
-
-        var sPath = oModel.createKey("/UserSignature", {
-            SignId: sSignId,
-            IsActiveEntity: bIsActiveEntity
-        });
-
-        this.getView().bindElement({
-            path: sPath,
-            model: undefined,
-            events: {
-            dataRequested: function () {
-                sap.ui.core.BusyIndicator.show(0);
-            },
-            dataReceived: function () {
-                sap.ui.core.BusyIndicator.hide();
-            }
-            }
-        });
-
-        this.getView().getModel("viewState").setData({
-            title: bIsActiveEntity ? "Display Signature" : "Edit Signature",
-            isCreate: false
-        });
-        },
-
-    onSavePress: function () {
-      var oData = this.getView().getModel("sign").getData();
+      var oArgs = oEvent.getParameter("arguments");
+      var sSignId = decodeURIComponent(oArgs.SignId || "");
+      var bIsActiveEntity = oArgs.IsActiveEntity === "true";
       var oModel = this.getOwnerComponent().getModel();
-      var that = this;
 
-      if (!oData.SignName) {
+      var sPath = oModel.createKey("/UserSignature", {
+        SignId: sSignId,
+        IsActiveEntity: bIsActiveEntity
+      });
+
+      this.getView().bindElement({
+        path: sPath,
+        events: {
+          dataRequested: function () {
+            BusyIndicator.show(0);
+          },
+          dataReceived: function () {
+            BusyIndicator.hide();
+          }
+        }
+      });
+
+      this.getView().getModel("viewState").setData({
+        title: bIsActiveEntity ? "Display Signature" : "Edit Signature",
+        isCreate: false
+      });
+    },
+
+    _validateBeforeSave: function (oPayload) {
+      if (!oPayload.SignName) {
         MessageBox.warning("Vui lòng nhập tên chữ ký");
-        return;
+        return false;
       }
 
-      if (!oData.Content) {
+      if (!oPayload.Content) {
         MessageBox.warning("Vui lòng nhập nội dung chữ ký");
+        return false;
+      }
+
+      return true;
+    },
+
+    _getPayloadFromView: function () {
+      return {
+        SignName: this.byId("inpSignName").getValue(),
+        IsDefault: this.byId("swDefault").getState(),
+        Content: this.byId("signatureEditor").getValue()
+      };
+    },
+
+    onSavePress: function () {
+      var oModel = this.getOwnerComponent().getModel();
+      var oViewState = this.getView().getModel("viewState");
+      var bIsCreate = oViewState.getProperty("/isCreate");
+      var oPayload = this._getPayloadFromView();
+      var that = this;
+
+      if (!this._validateBeforeSave(oPayload)) {
         return;
       }
 
       BusyIndicator.show(0);
 
-      if (!oData.SignId) {
-        oModel.create("/UserSignature", {
-          SignName: oData.SignName,
-          IsDefault: oData.IsDefault,
-          Content: oData.Content
-        }, {
+      if (bIsCreate) {
+        oModel.create("/UserSignature", oPayload, {
           success: function (oCreated) {
             BusyIndicator.hide();
             MessageToast.show("Đã lưu draft");
+
             that.getOwnerComponent().getRouter().navTo("signobject", {
               SignId: encodeURIComponent(oCreated.SignId),
-              IsActiveEntity: oCreated.IsActiveEntity
+              IsActiveEntity: "false"
             }, true);
           },
-          error: function () {
+          error: function (oError) {
             BusyIndicator.hide();
-            MessageBox.error("Lưu draft thất bại");
+            that._showODataError(oError, "Lưu draft thất bại");
           }
         });
       } else {
-        var sPath = oModel.createKey("/UserSignature", {
-          SignId: oData.SignId,
-          IsActiveEntity: oData.IsActiveEntity
-        });
+        var oCtx = this.getView().getBindingContext();
+        if (!oCtx) {
+          BusyIndicator.hide();
+          MessageBox.error("Không tìm thấy binding context.");
+          return;
+        }
 
-        oModel.update(sPath, {
-          SignName: oData.SignName,
-          IsDefault: oData.IsDefault,
-          Content: oData.Content
-        }, {
+        oModel.update(oCtx.getPath(), oPayload, {
           success: function () {
             BusyIndicator.hide();
             MessageToast.show("Đã cập nhật draft");
           },
-          error: function () {
+          error: function (oError) {
             BusyIndicator.hide();
-            MessageBox.error("Cập nhật thất bại");
+            that._showODataError(oError, "Cập nhật thất bại");
           }
         });
       }
     },
 
-        onActivatePress: function () {
-        var oCtx = this.getView().getBindingContext();
-        var oObj = oCtx.getObject();
-        var oModel = this.getOwnerComponent().getModel();
-        var oRouter = this.getOwnerComponent().getRouter();
+    onActivatePress: function () {
+      var oModel = this.getOwnerComponent().getModel();
+      var oViewState = this.getView().getModel("viewState");
+      var bIsCreate = oViewState.getProperty("/isCreate");
+      var oPayload = this._getPayloadFromView();
+      var oRouter = this.getOwnerComponent().getRouter();
+      var that = this;
 
-        sap.ui.core.BusyIndicator.show(0);
+      if (!this._validateBeforeSave(oPayload)) {
+        return;
+      }
 
-        oModel.callFunction("/UserSignatureActivate", {
-            method: "POST",
-            urlParameters: {
-            SignId: oObj.SignId,
-            IsActiveEntity: false
-            },
-            success: function () {
-            sap.ui.core.BusyIndicator.hide();
-            sap.m.MessageToast.show("Publish thành công");
-            oRouter.navTo("signlist");
-            },
-            error: function () {
-            sap.ui.core.BusyIndicator.hide();
-            sap.m.MessageBox.error("Publish thất bại");
-            }
+      BusyIndicator.show(0);
+
+      if (bIsCreate) {
+        oModel.create("/UserSignature", oPayload, {
+          success: function (oCreated) {
+            oModel.callFunction("/UserSignatureActivate", {
+              method: "POST",
+              urlParameters: {
+                SignId: oCreated.SignId,
+                IsActiveEntity: false
+              },
+              success: function () {
+                BusyIndicator.hide();
+                MessageToast.show("Publish thành công");
+                oRouter.navTo("signlist");
+              },
+              error: function (oError) {
+                BusyIndicator.hide();
+                that._showODataError(oError, "Publish thất bại");
+              }
+            });
+          },
+          error: function (oError) {
+            BusyIndicator.hide();
+            that._showODataError(oError, "Không tạo được draft trước khi publish.");
+          }
         });
-        },
+      } else {
+        var oCtx = this.getView().getBindingContext();
+        if (!oCtx) {
+          BusyIndicator.hide();
+          MessageBox.error("Không tìm thấy binding context.");
+          return;
+        }
+
+        var oObj = oCtx.getObject();
+
+        // nếu đang mở active entity thì phải tạo draft trước khi activate là sai logic
+        // activate chỉ áp dụng cho draft
+        if (oObj.IsActiveEntity === true) {
+          BusyIndicator.hide();
+          MessageBox.warning("Bản ghi hiện tại là bản active. Hãy bấm Edit để tạo draft rồi mới Publish.");
+          return;
+        }
+
+        // lưu thay đổi draft trước rồi activate
+        oModel.update(oCtx.getPath(), oPayload, {
+          success: function () {
+            oModel.callFunction("/UserSignatureActivate", {
+              method: "POST",
+              urlParameters: {
+                SignId: oObj.SignId,
+                IsActiveEntity: false
+              },
+              success: function () {
+                BusyIndicator.hide();
+                MessageToast.show("Publish thành công");
+                oRouter.navTo("signlist");
+              },
+              error: function (oError) {
+                BusyIndicator.hide();
+                that._showODataError(oError, "Publish thất bại");
+              }
+            });
+          },
+          error: function (oError) {
+            BusyIndicator.hide();
+            that._showODataError(oError, "Không lưu được draft trước khi publish.");
+          }
+        });
+      }
+    },
 
     onDeletePress: function () {
-      var oData = this.getView().getModel("sign").getData();
+      var oViewState = this.getView().getModel("viewState");
+      var bIsCreate = oViewState.getProperty("/isCreate");
       var oModel = this.getOwnerComponent().getModel();
+      var oRouter = this.getOwnerComponent().getRouter();
       var that = this;
+
+      if (bIsCreate) {
+        MessageToast.show("Chưa có draft để xóa");
+        return;
+      }
+
+      var oCtx = this.getView().getBindingContext();
+      if (!oCtx) {
+        MessageBox.error("Không tìm thấy binding context.");
+        return;
+      }
+
+      var oObj = oCtx.getObject();
 
       MessageBox.confirm("Bạn có chắc muốn xóa chữ ký này?", {
         onClose: function (sAction) {
@@ -172,18 +250,34 @@ sap.ui.define([
             return;
           }
 
-          var sPath = oModel.createKey("/UserSignature", {
-            SignId: oData.SignId,
-            IsActiveEntity: oData.IsActiveEntity
-          });
+          BusyIndicator.show(0);
 
-          oModel.remove(sPath, {
+          // draft -> xóa trực tiếp draft path
+          if (oObj.IsActiveEntity === false) {
+            oModel.remove(oCtx.getPath(), {
+              success: function () {
+                BusyIndicator.hide();
+                MessageToast.show("Xóa draft thành công");
+                oRouter.navTo("signlist");
+              },
+              error: function (oError) {
+                BusyIndicator.hide();
+                that._showODataError(oError, "Xóa draft thất bại");
+              }
+            });
+            return;
+          }
+
+          // active entity -> frontend-only thì chỉ xóa active nếu backend cho phép
+          oModel.remove(oCtx.getPath(), {
             success: function () {
+              BusyIndicator.hide();
               MessageToast.show("Xóa thành công");
-              that.getOwnerComponent().getRouter().navTo("signlist");
+              oRouter.navTo("signlist");
             },
-            error: function () {
-              MessageBox.error("Xóa thất bại");
+            error: function (oError) {
+              BusyIndicator.hide();
+              that._showODataError(oError, "Xóa thất bại");
             }
           });
         }
@@ -202,11 +296,31 @@ sap.ui.define([
     },
 
     onSignNameChange: function () {
-        var bIsCreate = this.getView().getModel("viewState").getProperty("/isCreate");
-        this.getView().getModel("viewState").setProperty(
-            "/title",
-            bIsCreate ? "Create Signature" : "Edit Signature"
-        );
+      var bIsCreate = this.getView().getModel("viewState").getProperty("/isCreate");
+      this.getView().getModel("viewState").setProperty(
+        "/title",
+        bIsCreate ? "Create Signature" : "Edit Signature"
+      );
+    },
+
+    _showODataError: function (oError, sDefaultMsg) {
+      var sMsg = sDefaultMsg || "Có lỗi xảy ra";
+
+      if (oError && oError.responseText) {
+        try {
+          var oResp = JSON.parse(oError.responseText);
+          sMsg = oResp &&
+            oResp.error &&
+            oResp.error.message &&
+            oResp.error.message.value
+            ? oResp.error.message.value
+            : sMsg;
+        } catch (e) {
+          // ignore parse error
+        }
+      }
+
+      MessageBox.error(sMsg);
     }
   });
 });

@@ -57,7 +57,7 @@ sap.ui.define([
             return this.getView().getModel("vm");
         },
 
-        _loadEmailLogs: function (aFilters) {
+        _loadEmailLogs: function (aFilters, sRecipientQuery) {
             const oODataModel = this.getODataModel();
             const oVM = this.getViewModel();
 
@@ -72,7 +72,24 @@ sap.ui.define([
                     const aResults = (oData && oData.results) || [];
                     const aMapped = aResults.map(this._mapHeaderLog.bind(this));
 
-                    oVM.setProperty("/logs", aMapped);
+                    let aFinal = aMapped;
+
+                    if (sRecipientQuery) {
+                        const sNeedle = sRecipientQuery.toLowerCase();
+
+                        aFinal = aMapped.filter(function (oItem) {
+                            return [
+                                oItem.Recipient,
+                                oItem.RecipientTo,
+                                oItem.RecipientCc,
+                                oItem.RecipientBcc
+                            ].some(function (v) {
+                                return (v || "").toLowerCase().includes(sNeedle);
+                            });
+                        });
+                    }
+
+                    oVM.setProperty("/logs", aFinal);
                     this._oBusy.close();
                 }.bind(this),
                 error: function () {
@@ -308,8 +325,8 @@ sap.ui.define([
         },
 
         onSearch: function () {
-            const aFilters = this._buildFilters();
-            this._loadEmailLogs(aFilters);
+            const oFilterData = this._buildFilters();
+            this._loadEmailLogs(oFilterData.filters, oFilterData.recipientQuery);
         },
         
         _buildFilters: function () {
@@ -325,9 +342,8 @@ sap.ui.define([
             const dFrom = oDateRange.getDateValue();
             const dTo = oDateRange.getSecondDateValue();
 
-            if (sRecipient) {
-                aFilters.push(new Filter("Recipient", FilterOperator.Contains, sRecipient));
-            }
+            // Không filter Recipient ở OData vì Recipient không thuộc EmailLogType
+            // Recipient chỉ có trong to_Details / client mapping
 
             if (aStatuses.length === 1) {
                 aFilters.push(new Filter("Status", FilterOperator.EQ, aStatuses[0]));
@@ -356,7 +372,10 @@ sap.ui.define([
                 aFilters.push(new Filter("SentDate", FilterOperator.EQ, dSingle));
             }
 
-            return aFilters;
+            return {
+                filters: aFilters,
+                recipientQuery: sRecipient
+            };
         },
 
         onClearFilter: function () {
@@ -368,11 +387,12 @@ sap.ui.define([
             oView.byId("drsSentDate").setSecondDateValue(null);
             oView.byId("drsSentDate").setValue("");
 
-            this._loadEmailLogs([]);
+            this._loadEmailLogs([], "");;
         },
 
         onRefresh: function () {
-            this._loadEmailLogs(this._buildFilters());
+            const oFilterData = this._buildFilters();
+            this._loadEmailLogs(oFilterData.filters, oFilterData.recipientQuery);
             MessageToast.show("Email logs refreshed");
         },
 

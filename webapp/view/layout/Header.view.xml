@@ -12,12 +12,12 @@
 
         <ToolbarSpacer/>
 
-        <Button icon="sap-icon://message-popup"/>
-        <Button icon="sap-icon://search"/>
-        <Button icon="sap-icon://question-mark"/>
-        <Button icon="sap-icon://bell"/>
+        <Avatar
+            displayShape="Circle"
+            initials="DEV"
+            tooltip="DEV" />
 
-        <Button text="Save" type="Emphasized"/>
+        <Text text="DEV" />
 
     </tnt:ToolHeader>
 

@@ -164,7 +164,7 @@ sap.ui.define([
                     oJSONModel.setProperty("/charts/emailHealth", [
                         {
                             status: "Success",
-                            value: iSuccess
+                            value: iOpen
                         },
                         {
                             status: "Failed",
@@ -172,7 +172,7 @@ sap.ui.define([
                         },
                         {
                             status: "In Process",
-                            value: iOpen
+                            value: iSuccess
                         }
                     ]);
 

@@ -15,24 +15,23 @@
 
                 <f:actions>
                     <Button
+                        text="Publish"
+                        type="Accept"
+                        icon="sap-icon://activate"
+                        press=".onActivatePress" />
+
+                    <Button
                         text="Save as Draft"
                         type="Emphasized"
                         icon="sap-icon://save"
                         press=".onSavePress" />
 
                     <Button
-                        text="Publish"
-                        type="Accept"
-                        icon="sap-icon://activate"
-                        press=".onActivatePress"
-                        visible="{= ${sign>IsActiveEntity} === false }" />
-
-                    <Button
                         text="Delete"
                         type="Reject"
                         icon="sap-icon://delete"
                         press=".onDeletePress"
-                        visible="{= !!${sign>SignId} }" />
+                        visible="{= ${viewState>/isCreate} === false }" />
 
                     <Button
                         text="Cancel"
@@ -70,12 +69,14 @@
 
                         <Label text="Signature Name" required="true" />
                         <Input
+                            id="inpSignName"
                             value="{SignName}"
                             placeholder="Enter signature name"
                             liveChange=".onSignNameChange" />
 
                         <Label text="Default Signature" />
                         <Switch
+                            id="swDefault"
                             state="{IsDefault}"
                             customTextOn="Yes"
                             customTextOff="No" />

@@ -33,7 +33,7 @@
                         id="searchField"
                         width="320px"
                         placeholder="Search by Signature Name"
-                        liveChange=".onSearch"
+                        search=".onSearch"
                         class="sapUiSmallMarginEnd sapUiSmallMarginBottom" />
 
                     <Label
@@ -71,7 +71,9 @@
                 growing="true"
                 growingScrollToLoad="true"
                 inset="false"
-                items="{sign>/UserSignature}">
+                items="{
+                    path: '/UserSignature'
+                }">
 
                 <headerToolbar>
                     <OverflowToolbar>
@@ -106,35 +108,35 @@
                         <cells>
                             <VBox>
                                 <HBox alignItems="Center" wrap="Wrap">
-                                    <Text text="{sign>SignName}" wrapping="false" />
+                                    <Text text="{SignName}" wrapping="false" />
 
                                     <ObjectStatus
                                         text="Draft"
                                         state="Information"
-                                        visible="{= ${sign>IsActiveEntity} === false }"
+                                        visible="{= ${IsActiveEntity} === false }"
                                         class="sapUiTinyMarginBegin" />
 
                                     <ObjectStatus
                                         text="Default"
                                         state="Success"
-                                        visible="{= ${sign>IsDefault} === true }"
+                                        visible="{= ${IsDefault} === true }"
                                         class="sapUiTinyMarginBegin" />
                                 </HBox>
 
                                 <Text
                                     text="Unsaved Changes"
-                                    visible="{= ${sign>HasDraftEntity} === true &amp;&amp; ${sign>IsActiveEntity} === true }"
+                                    visible="{= ${HasDraftEntity} === true &amp;&amp; ${IsActiveEntity} === true }"
                                     class="sapUiTinyMarginTop sapUiTinyMarginBottom"
                                     wrapping="false" />
                             </VBox>
 
                             <ObjectStatus
-                                text="{= ${sign>IsDefault} ? 'Yes' : 'No' }"
-                                state="{= ${sign>IsDefault} ? 'Success' : 'None' }" />
+                                text="{= ${IsDefault} ? 'Yes' : 'No' }"
+                                state="{= ${IsDefault} ? 'Success' : 'None' }" />
 
-                            <Text text="{sign>OwnerId}" />
+                            <Text text="{OwnerId}" />
 
-                            <Text text="{sign>LastChangedAt}" />
+                            <Text text="{LastChangedAt}" />
 
                             <HBox justifyContent="End">
                                 <Button icon="sap-icon://edit" type="Transparent" press=".onEditPress" />

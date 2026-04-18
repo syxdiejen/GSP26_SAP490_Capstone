@@ -1,13 +1,11 @@
 sap.ui.define([
   "sap/ui/core/mvc/Controller",
-  "sap/ui/model/json/JSONModel",
   "sap/ui/model/Filter",
   "sap/ui/model/FilterOperator",
   "sap/m/MessageBox",
   "sap/m/MessageToast"
 ], function (
   Controller,
-  JSONModel,
   Filter,
   FilterOperator,
   MessageBox,
@@ -17,113 +15,86 @@ sap.ui.define([
 
   return Controller.extend("zemail.template.app.controller.sign.UserSignatureList", {
     onInit: function () {
-      this.getView().setModel(new JSONModel({
-        UserSignature: []
-      }), "sign");
-
-      this._loadData();
     },
 
-    _loadData: function () {
+    onCreatePress: function () {
       var oModel = this.getOwnerComponent().getModel();
-      var oJson = this.getView().getModel("sign");
+      var oRouter = this.getOwnerComponent().getRouter();
 
-      oModel.read("/UserSignature", {
-        urlParameters: {
-          "$format": "json"
-        },
-        success: function (oData) {
-          oJson.setProperty("/UserSignature", oData.results || []);
+      sap.ui.core.BusyIndicator.show(0);
+
+      oModel.create("/UserSignature", {
+        SignName: "",
+        IsDefault: false,
+        Content: ""
+      }, {
+        success: function (oCreated) {
+          sap.ui.core.BusyIndicator.hide();
+
+          oRouter.navTo("signobject", {
+            SignId: encodeURIComponent(oCreated.SignId),
+            IsActiveEntity: "false"
+          });
         },
         error: function () {
-          MessageBox.error("Không tải được danh sách chữ ký.");
+          sap.ui.core.BusyIndicator.hide();
+          sap.m.MessageBox.error("Không tạo được draft chữ ký.");
         }
       });
     },
 
-    onCreatePress: function () {
-        var oModel = this.getOwnerComponent().getModel();
-        var oRouter = this.getOwnerComponent().getRouter();
-
-        sap.ui.core.BusyIndicator.show(0);
-
-        oModel.create("/UserSignature", {
-            SignName: "",
-            IsDefault: false,
-            Content: ""
-        }, {
-            success: function (oCreated) {
-            sap.ui.core.BusyIndicator.hide();
-
-            oRouter.navTo("signobject", {
-                SignId: encodeURIComponent(oCreated.SignId),
-                IsActiveEntity: "false"
-            });
-            },
-            error: function () {
-            sap.ui.core.BusyIndicator.hide();
-            sap.m.MessageBox.error("Không tạo được draft chữ ký.");
-            }
-        });
-        },
-
     onItemPress: function (oEvent) {
-      var oCtx = oEvent.getSource().getBindingContext("sign");
+      var oCtx = oEvent.getSource().getBindingContext();
       var oObj = oCtx.getObject();
 
       this.getOwnerComponent().getRouter().navTo("signobject", {
         SignId: encodeURIComponent(oObj.SignId),
-        IsActiveEntity: oObj.IsActiveEntity
+        IsActiveEntity: String(oObj.IsActiveEntity)
       });
     },
 
-        onEditPress: function (oEvent) {
-        oEvent.stopPropagation();
-
-        var oCtx = oEvent.getSource().getParent().getParent().getBindingContext("sign");
-        var oObj = oCtx.getObject();
-        var oModel = this.getOwnerComponent().getModel();
-        var oRouter = this.getOwnerComponent().getRouter();
-
-        if (oObj.IsActiveEntity === false) {
-            oRouter.navTo("signobject", {
-            SignId: encodeURIComponent(oObj.SignId),
-            IsActiveEntity: "false"
-            });
-            return;
-        }
-
-        sap.ui.core.BusyIndicator.show(0);
-
-        oModel.callFunction("/UserSignatureEdit", {
-            method: "POST",
-            urlParameters: {
-            SignId: oObj.SignId,
-            IsActiveEntity: true,
-            PreserveChanges: true
-            },
-            success: function (oData) {
-            sap.ui.core.BusyIndicator.hide();
-
-            oRouter.navTo("signobject", {
-                SignId: encodeURIComponent(oData.SignId),
-                IsActiveEntity: "false"
-            });
-            },
-            error: function () {
-            sap.ui.core.BusyIndicator.hide();
-            sap.m.MessageBox.error("Không tạo được draft để edit.");
-            }
-        });
-        },
-
-    onDeletePress: function (oEvent) {
-      oEvent.stopPropagation();
-
-      var oCtx = oEvent.getSource().getParent().getParent().getBindingContext("sign");
+    onEditPress: function (oEvent) {
+      var oCtx = oEvent.getSource().getBindingContext();
       var oObj = oCtx.getObject();
       var oModel = this.getOwnerComponent().getModel();
-      var that = this;
+      var oRouter = this.getOwnerComponent().getRouter();
+
+      // Nếu là draft thì vào luôn
+      if (oObj.IsActiveEntity === false) {
+        oRouter.navTo("signobject", {
+          SignId: encodeURIComponent(oObj.SignId),
+          IsActiveEntity: "false"
+        });
+        return;
+      }
+
+      sap.ui.core.BusyIndicator.show(0);
+
+      oModel.callFunction("/UserSignatureEdit", {
+        method: "POST",
+        urlParameters: {
+          SignId: oObj.SignId,
+          IsActiveEntity: true,
+          PreserveChanges: true
+        },
+        success: function (oData) {
+          sap.ui.core.BusyIndicator.hide();
+
+          oRouter.navTo("signobject", {
+            SignId: encodeURIComponent(oData.SignId),
+            IsActiveEntity: "false"
+          });
+        },
+        error: function () {
+          sap.ui.core.BusyIndicator.hide();
+          sap.m.MessageBox.error("Không tạo được draft để edit.");
+        }
+      });
+    },
+
+    onDeletePress: function (oEvent) {
+      var oCtx = oEvent.getSource().getBindingContext();
+      var oModel = this.getOwnerComponent().getModel();
 
       MessageBox.confirm("Bạn có chắc muốn xóa chữ ký này?", {
         onClose: function (sAction) {
@@ -131,17 +102,16 @@ sap.ui.define([
             return;
           }
 
-          var sPath = oModel.createKey("/UserSignature", {
-            SignId: oObj.SignId,
-            IsActiveEntity: oObj.IsActiveEntity
-          });
+          sap.ui.core.BusyIndicator.show(0);
 
-          oModel.remove(sPath, {
+          oModel.remove(oCtx.getPath(), {
             success: function () {
+              sap.ui.core.BusyIndicator.hide();
               MessageToast.show("Xóa thành công");
-              that._loadData();
+              oModel.refresh(true);
             },
-            error: function () {
+            error: function (oError) {
+              sap.ui.core.BusyIndicator.hide();
               MessageBox.error("Xóa thất bại");
             }
           });
@@ -150,33 +120,37 @@ sap.ui.define([
     },
 
     onSearch: function () {
+      this._applyFilters();
     },
 
     onDefaultChange: function () {
+      this._applyFilters();
     },
 
     onGoPress: function () {
+      this._applyFilters();
+    },
+
+    _applyFilters: function () {
       var sKeyword = this.byId("searchField").getValue();
       var sType = this.byId("defaultFilter").getSelectedKey();
-      var aData = this.getView().getModel("sign").getProperty("/UserSignature") || [];
+      var oTable = this.byId("signatureTable");
+      var oBinding = oTable.getBinding("items");
+      var aFilters = [];
 
-      var aFiltered = aData.filter(function (oItem) {
-        var bMatchKeyword = !sKeyword ||
-          (oItem.SignName || "").toLowerCase().indexOf(sKeyword.toLowerCase()) !== -1;
+      if (sKeyword) {
+        aFilters.push(new Filter("SignName", FilterOperator.Contains, sKeyword));
+      }
 
-        var bMatchType = true;
-        if (sType === "DEFAULT") {
-          bMatchType = oItem.IsDefault === true;
-        } else if (sType === "NONDEFAULT") {
-          bMatchType = oItem.IsDefault === false;
-        } else if (sType === "DRAFT") {
-          bMatchType = oItem.IsActiveEntity === false;
-        }
+      if (sType === "DEFAULT") {
+        aFilters.push(new Filter("IsDefault", FilterOperator.EQ, true));
+      } else if (sType === "NONDEFAULT") {
+        aFilters.push(new Filter("IsDefault", FilterOperator.EQ, false));
+      } else if (sType === "DRAFT") {
+        aFilters.push(new Filter("IsActiveEntity", FilterOperator.EQ, false));
+      }
 
-        return bMatchKeyword && bMatchType;
-      });
-
-      this.getView().getModel("sign").setProperty("/UserSignature", aFiltered);
+      oBinding.filter(aFilters);
     }
   });
 });

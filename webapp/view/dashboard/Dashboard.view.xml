@@ -122,7 +122,7 @@
                                     <tileContent>
                                         <TileContent>
                                             <content>
-                                                <NumericContent value="{dashboard>/emaillog/totalSuccess}" valueColor="Good" withMargin="false" />
+                                                <NumericContent value="{dashboard>/emaillog/totalInProcess}" valueColor="Good" withMargin="false" />
                                             </content>
                                         </TileContent>
                                     </tileContent>
@@ -142,7 +142,7 @@
                                     <tileContent>
                                         <TileContent>
                                             <content>
-                                                <NumericContent value="{dashboard>/emaillog/totalInProcess}" valueColor="Critical" withMargin="false" />
+                                                <NumericContent value="{dashboard>/emaillog/totalSuccess}" valueColor="Critical" withMargin="false" />
                                             </content>
                                         </TileContent>
                                     </tileContent>

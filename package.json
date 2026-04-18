@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "description": "The UI5 frontend application",
   "scripts": {
-    "start": "ui5 serve -o index.html"
+    "start": "ui5 serve -o index.html",
+    "build": "ui5 build --all --clean-dest",
+    "serve-dist": "ws --compress -d dist --open"
   },
   "devDependencies": {
     "@sap/ux-ui5-tooling": "^1.21.0",

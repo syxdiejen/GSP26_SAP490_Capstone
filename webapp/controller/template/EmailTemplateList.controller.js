@@ -391,12 +391,18 @@ sap.ui.define([
 
             var sHtml = oTemplate.BodyContent || "<div>No content</div>";
 
+            // Escape {{VAR}} để UI5 không parse nhầm
+            sHtml = sHtml
+                .replace(/{{/g, "&#123;&#123;")
+                .replace(/}}/g, "&#125;&#125;");
+
             this._oPreviewDialog.removeAllContent();
             this._oPreviewDialog.addContent(new HTML({
-                content: "<div style='padding:16px;background:#fff;min-height:400px;overflow:auto;'>" +
+                content:
+                    "<div style='padding:16px;background:#fff;min-height:400px;overflow:auto;'>" +
                     sHtml +
                     "</div>",
-                preferDOM: false
+                preferDOM: true
             }));
 
             this._oPreviewDialog.open();

@@ -2,23 +2,22 @@
     controllerName="zemail.template.app.controller.layout.Header"
     xmlns="sap.m"
     xmlns:mvc="sap.ui.core.mvc"
-    xmlns:tnt="sap.tnt">
-
+    xmlns:tnt="sap.tnt"
+>
     <tnt:ToolHeader>
+        <Image
+            src="https://www.sap.com/dam/application/shared/logos/sap-logo-svg.svg"
+            height="28px"
+        />
+        <Title text="Email Template Management App" />
 
-        <Image src="https://www.sap.com/dam/application/shared/logos/sap-logo-svg.svg"
-           height="28px"/>
-        <Title text="GSP26_SAP13"/>
-
-        <ToolbarSpacer/>
+        <ToolbarSpacer />
 
         <Avatar
             displayShape="Circle"
             initials="DEV"
-            tooltip="DEV" />
-
-        <Text text="DEV" />
+            tooltip="DEV"
+        />
 
     </tnt:ToolHeader>
-
 </mvc:View>

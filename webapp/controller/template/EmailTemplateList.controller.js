@@ -74,7 +74,7 @@ sap.ui.define([
 
             oODataModel.read("/EmailHeader", {
                 urlParameters: {
-                    "$expand": "to_Body,to_Variables",
+                    "$expand": "to_Body",
                     "$format": "json",
                     "$orderby": "CreatedOn desc"
                 },

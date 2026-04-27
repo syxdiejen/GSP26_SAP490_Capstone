@@ -42,7 +42,7 @@ sap.ui.define([], function () {
             var sPath = "/EmailHeader(DbKey=guid'" + sDbKey + "',IsActiveEntity=" + bIsActiveEntity + ")";
             return readAsync(oModel, sPath, {
                 urlParameters: {
-                    "$expand": "to_Body,to_Variables"
+                    "$expand": "to_Body"
                 }
             });
         },

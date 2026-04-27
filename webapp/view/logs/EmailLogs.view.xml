@@ -5,8 +5,8 @@
     xmlns:f="sap.f"
     xmlns:fb="sap.ui.comp.filterbar"
     xmlns:core="sap.ui.core"
-    displayBlock="true">
-
+    displayBlock="true"
+>
     <f:DynamicPage>
         <f:title>
             <f:DynamicPageTitle>
@@ -15,7 +15,9 @@
                 </f:heading>
 
                 <f:expandedContent>
-                    <Label text="View and track email delivery logs across the system." />
+                    <Label
+                        text="View and track email delivery logs across the system."
+                    />
                 </f:expandedContent>
             </f:DynamicPageTitle>
         </f:title>
@@ -26,34 +28,66 @@
                     id="filterbar"
                     persistencyKey="PKeyEmailLog"
                     useToolbar="false"
-                    search=".onSearch">
-
+                    search=".onSearch"
+                >
                     <fb:filterGroupItems>
-                        <fb:FilterGroupItem name="Date" label="Sent Date" groupName="Main" visibleInFilterBar="true">
+                        <fb:FilterGroupItem
+                            name="Date"
+                            label="Sent Date"
+                            groupName="Main"
+                            visibleInFilterBar="true"
+                        >
                             <fb:control>
                                 <DateRangeSelection
                                     id="drsSentDate"
-                                    displayFormat="MMM dd, yyyy" />
+                                    displayFormat="MMM dd, yyyy"
+                                />
                             </fb:control>
                         </fb:FilterGroupItem>
 
-                        <fb:FilterGroupItem name="Status" label="Status" groupName="Main" visibleInFilterBar="true">
+                        <fb:FilterGroupItem
+                            name="Status"
+                            label="Status"
+                            groupName="Main"
+                            visibleInFilterBar="true"
+                        >
                             <fb:control>
-                                <MultiComboBox id="mcbStatus" selectionFinish=".onSearch">
-                                    <core:Item key="O" text="Sent" />
-                                    <core:Item key="E" text="Failed" />
-                                    <core:Item key="P" text="Pending" />
-                                    <core:Item key="S" text="Processed" />
+                                <MultiComboBox
+                                    id="mcbStatus"
+                                    selectionFinish=".onSearch"
+                                >
+                                    <core:Item
+                                        key="O"
+                                        text="Sent"
+                                    />
+                                    <core:Item
+                                        key="E"
+                                        text="Failed"
+                                    />
+                                    <core:Item
+                                        key="P"
+                                        text="Pending"
+                                    />
+                                    <core:Item
+                                        key="S"
+                                        text="Processed"
+                                    />
                                 </MultiComboBox>
                             </fb:control>
                         </fb:FilterGroupItem>
 
-                        <fb:FilterGroupItem name="Recipient" label="Recipient" groupName="Main" visibleInFilterBar="true">
+                        <fb:FilterGroupItem
+                            name="Recipient"
+                            label="Recipient"
+                            groupName="Main"
+                            visibleInFilterBar="true"
+                        >
                             <fb:control>
                                 <SearchField
                                     id="sfRecipient"
                                     placeholder="e.g. mail@example.com"
-                                    search=".onSearch" />
+                                    search=".onSearch"
+                                />
                             </fb:control>
                         </fb:FilterGroupItem>
                     </fb:filterGroupItems>
@@ -66,45 +100,75 @@
                 id="tblEmailLogs"
                 items="{vm>/logs}"
                 growing="true"
-                growingScrollToLoad="true">
-
+                growingScrollToLoad="true"
+            >
                 <headerToolbar>
                     <OverflowToolbar>
-                        <Title text="Email Logs" level="H4" />
+                        <Title
+                            text="Email Logs"
+                            level="H4"
+                        />
                         <ToolbarSpacer />
-                        <Button text="Refresh" icon="sap-icon://refresh" press=".onRefresh" />
-                        <Button text="Clear Filters" press=".onClearFilter" />
+                        <Button
+                            text="Refresh"
+                            icon="sap-icon://refresh"
+                            press=".onRefresh"
+                        />
+                        <Button
+                            text="Clear Filters"
+                            press=".onClearFilter"
+                        />
                     </OverflowToolbar>
                 </headerToolbar>
 
                 <columns>
-                    <Column><Text text="Status" /></Column>
-                    <Column><Text text="Template" /></Column>
-                    <Column><Text text="Recipient" /></Column>
-                    <Column><Text text="Sent By" /></Column>
-                    <Column><Text text="Sent At" /></Column>
-                    <Column><Text text="File" /></Column>
-                    <Column hAlign="End"><Text text="Action" /></Column>
+                    <Column>
+                        <Text text="Status" />
+                    </Column>
+                    <Column>
+                        <Text text="Template" />
+                    </Column>
+                    <Column>
+                        <Text text="Sender Email" />
+                    </Column>
+                    <Column>
+                        <Text text="Processed By" />
+                    </Column>
+                    <Column>
+                        <Text text="Sent At" />
+                    </Column>
+                    <Column>
+                        <Text text="File" />
+                    </Column>
+                    <Column hAlign="End">
+                        <Text text="Action" />
+                    </Column>
                 </columns>
 
                 <items>
-                    <ColumnListItem type="Navigation" press=".onViewDetail">
+                    <ColumnListItem
+                        type="Navigation"
+                        press=".onViewDetail"
+                    >
                         <cells>
                             <ObjectStatus
                                 text="{vm>StatusText}"
-                                state="{vm>StatusState}" />
+                                state="{vm>StatusState}"
+                            />
                             <Text text="{vm>TemplateId}" />
-                            <Text text="{vm>Recipient}" />
+                            <Text text="{vm>SenderEmail}" />
                             <Text text="{vm>SentBy}" />
                             <Text text="{vm>SentAtText}" />
                             <Link
                                 text="{vm>FileName}"
                                 press=".onOpenAttachment"
-                                visible="{= !!${vm>FileName} }" />
+                                visible="{= !!${vm>FileName} }"
+                            />
                             <Button
                                 text="View Detail"
                                 type="Transparent"
-                                press=".onViewDetail" />
+                                press=".onViewDetail"
+                            />
                         </cells>
                     </ColumnListItem>
                 </items>

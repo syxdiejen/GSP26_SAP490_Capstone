@@ -128,6 +128,10 @@ sap.ui.define([
         _save: function (bActivateAfterSave) {
             this._flushCurrentEditor();
 
+            if (!this._validateBasicInfo()) {
+                return;
+            }
+
             if (!this._validate()) {
                 return;
             }
@@ -257,25 +261,23 @@ sap.ui.define([
         },
 
         _updateStepBasicValidation: function () {
-            var oModel = this._getCreateModel();
             var oStep = this.byId("stepBasic");
-            var oWizard = this.byId("createWizard");
 
-            if (!oStep || !oWizard) {
-                return;
-            }
-
-            var bValid = TemplateValidator.isBasicInfoValid(oModel.getData());
-
-            oStep.setValidated(bValid);
-
-            if (!bValid) {
-                oWizard.discardProgress(oStep);
+            if (oStep) {
+                oStep.setValidated(true);
             }
         },
 
-        onTemplateNameChange: function () {
-            this._updateStepBasicValidation();
+        onContentStepActivate: function () {
+            if (!this._validateBasicInfo()) {
+                var oWizard = this.byId("createWizard");
+                var oStepBasic = this.byId("stepBasic");
+
+                if (oWizard && oStepBasic) {
+                    oWizard.goToStep(oStepBasic, true);
+                    oWizard.discardProgress(oStepBasic);
+                }
+            }
         },
 
         // =========================================================
@@ -530,6 +532,27 @@ sap.ui.define([
             } catch (e) {
                 return (oError && oError.message) || sFallbackMessage || "Operation failed";
             }
+        },
+
+        _validateBasicInfo: function () {
+            var oData = this._getCreateModel().getData();
+
+            if (!TemplateNormalizer.trim(oData.templateName)) {
+                MessageBox.warning("Please enter Template Name");
+                return false;
+            }
+
+            if (!TemplateNormalizer.trim(oData.department)) {
+                MessageBox.warning("Please enter Department");
+                return false;
+            }
+
+            if (!TemplateNormalizer.trim(oData.category)) {
+                MessageBox.warning("Please select Category");
+                return false;
+            }
+
+            return true;
         },
 
         // =========================================================

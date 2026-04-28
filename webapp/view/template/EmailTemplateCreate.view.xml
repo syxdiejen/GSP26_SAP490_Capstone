@@ -24,7 +24,7 @@
                 <WizardStep id="stepBasic" title="Basic Information" validated="false">
                     <form:SimpleForm editable="true" layout="ResponsiveGridLayout">
                         <Label text="Template Name" />
-                        <Input id="templateNameInput" value="{create>/templateName}" required="true" liveChange=".onTemplateNameChange"/>
+                        <Input id="templateNameInput" value="{create>/templateName}" required="true" />
 
                         <Label text="Department" />
                         <Input id="departmentInput" value="{create>/department}" required="true"/>
@@ -41,7 +41,7 @@
                     </form:SimpleForm>
                 </WizardStep>
 
-                <WizardStep id="stepContent" title="Email Content" validated="true">
+                <WizardStep id="stepContent" title="Email Content" activate=".onContentStepActivate" validated="true">
                     <l:Grid defaultSpan="XL8 L8 M12 S12">
                         <VBox width="100%">
                             <SegmentedButton

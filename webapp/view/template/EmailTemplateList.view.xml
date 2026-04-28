@@ -114,11 +114,11 @@
                     <Column>
                         <Text text="Category" />
                     </Column>
-                    <Column
-                        width="5rem"
-                        hAlign="Center"
-                    >
-                        <Text text="Active" />
+                    <Column width="5rem" hAlign="Center">
+                        <Text text="Publish" />
+                    </Column>
+                    <Column width="7rem" hAlign="Center">
+                        <Text text="Version Status" />
                     </Column>
                     <Column hAlign="End">
                         <Text text="Actions" />
@@ -146,6 +146,11 @@
                                 customTextOn="✓"
                                 customTextOff="—"
                                 change=".onToggleActive"
+                            />
+
+                            <ObjectStatus
+                                text="{= ${email>IsActiveEntity} === false ? 'Draft' : 'Active' }"
+                                state="{= ${email>IsActiveEntity} === false ? 'Warning' : 'Success' }"
                             />
 
                             <HBox justifyContent="End">

@@ -148,22 +148,8 @@ sap.ui.define(
             BodyContent: sFullContent,
             Language: oFirstBody ? oFirstBody.Language : "",
             Version: oFirstBody ? oFirstBody.Version : "",
-            //               Variables: aVariables
+            __metadata: oItem.__metadata,
           };
-        },
-
-        _isTemplateActive: function (oTemplate) {
-          return !!(oTemplate && oTemplate.IsActive === true);
-        },
-
-        _ensureTemplateActive: function (oTemplate) {
-          if (!this._isTemplateActive(oTemplate)) {
-            MessageBox.warning(
-              "This template is not active. Please activate it before using.",
-            );
-            return false;
-          }
-          return true;
         },
 
         _applyFilters: function () {
@@ -225,6 +211,11 @@ sap.ui.define(
 
         onItemPress: function (oEvent) {
           var oContext = oEvent.getSource().getBindingContext("email");
+          var oTemplate = oContext.getObject();
+
+          if (!this._canUseTemplate(oTemplate)) {
+            return;
+          }
 
           this._navToDetail(oContext);
         },
@@ -249,19 +240,14 @@ sap.ui.define(
         // 5. TEMPLATE ACTIONS (EDIT / DELETE / TOGGLE)
         // =========================================================
         _buildHeaderKey: function (oTemplate) {
-          var oODataModel = this._getODataModel();
-          var oKeyData = {
+          var bIsActiveEntity =
+            oTemplate.IsActiveEntity === true ||
+            oTemplate.IsActiveEntity === "true";
+
+          return this._getODataModel().createKey("/EmailHeader", {
             DbKey: oTemplate.DbKey,
-          };
-
-          if (
-            Object.prototype.hasOwnProperty.call(oTemplate, "IsActiveEntity") &&
-            oTemplate.IsActiveEntity !== undefined
-          ) {
-            oKeyData.IsActiveEntity = oTemplate.IsActiveEntity;
-          }
-
-          return oODataModel.createKey("/EmailHeader", oKeyData);
+            IsActiveEntity: bIsActiveEntity
+          });
         },
 
         _refreshAfterMutation: function (sMessage) {
@@ -322,100 +308,161 @@ sap.ui.define(
           });
         },
 
-        onDeleteTemplate: function (oEvent) {
-          var oTemplate = this._getSelectedTemplate(oEvent);
-          var oODataModel = this._getODataModel();
-
-          if (!oTemplate) {
-            MessageBox.error("Không tìm thấy template để xóa.");
-            return;
-          }
-
-          MessageBox.confirm("Delete this template?", {
-            actions: [MessageBox.Action.OK, MessageBox.Action.CANCEL],
-            emphasizedAction: MessageBox.Action.OK,
-            onClose: function (sAction) {
-              var sKeyPath = "";
-
-              if (sAction !== MessageBox.Action.OK) {
-                return;
-              }
-
-              try {
-                sKeyPath = this._buildHeaderKey(oTemplate);
-              } catch (e) {
-                MessageBox.error("Không tạo được key để xóa template.");
-                return;
-              }
-
-              this._setBusy(true);
-
-              oODataModel.remove(sKeyPath, {
-                success: function () {
-                  this._setBusy(false);
-                  this._refreshAfterMutation("Template deleted successfully");
-                }.bind(this),
-                error: function (oError) {
-                  this._setBusy(false);
-                  MessageBox.error(
-                    this._extractODataError(
-                      oError,
-                      "Không xóa được template từ backend.",
-                    ),
-                  );
-                }.bind(this),
-              });
-            }.bind(this),
-          });
+        _sanitizePreviewHtml: function (sHtml) {
+          return String(sHtml || "")
+            .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "")
+            .replace(/<iframe[\s\S]*?>[\s\S]*?<\/iframe>/gi, "")
+            .replace(/<object[\s\S]*?>[\s\S]*?<\/object>/gi, "")
+            .replace(/<embed[\s\S]*?>[\s\S]*?<\/embed>/gi, "")
+            .replace(/\son\w+\s*=\s*"[^"]*"/gi, "")
+            .replace(/\son\w+\s*=\s*'[^']*'/gi, "")
+            .replace(/\son\w+\s*=\s*[^\s>]+/gi, "")
+            .replace(/javascript\s*:/gi, "");
         },
+
+        onDeleteTemplate: function (oEvent) {
+          var oContext = oEvent.getSource().getBindingContext("email");
+          var oData = oContext.getObject();
+          var oModel = this._getODataModel();
+
+          MessageBox.confirm("Are you sure you want to delete this template?", {
+              onClose: function (sAction) {
+                  if (sAction !== MessageBox.Action.OK) {
+                      return;
+                  }
+
+                  if (oData.IsActiveEntity === false) {
+                      oModel.callFunction("/EmailHeaderDiscard", {
+                          method: "POST",
+                          urlParameters: {
+                              DbKey: oData.DbKey,
+                              IsActiveEntity: false
+                          },
+                          success: function () {
+                              MessageToast.show("Draft discarded");
+                              this._loadTemplates();
+                          }.bind(this),
+                          error: function (oError) {
+                              MessageBox.error("Discard failed");
+                              console.error(oError);
+                          }
+                      });
+                      return;
+                  }
+
+                  var sDeletePath = oModel.createKey("/EmailHeader", {
+                    DbKey: oData.DbKey,
+                    IsActiveEntity: true
+                  });
+
+                  oModel.remove(sDeletePath, {
+                    success: function () {
+                      MessageToast.show("Deleted successfully");
+                      this._loadTemplates();
+                    }.bind(this),
+                    error: function (oError) {
+                      MessageBox.error(
+                        this._extractODataError(oError, "Delete failed")
+                      );
+                      console.error(oError);
+                    }.bind(this)
+                  });
+              }.bind(this)
+          });
+      },
 
         onToggleActive: function (oEvent) {
           var bState = oEvent.getParameter("state");
           var oTemplate = this._getSelectedTemplate(oEvent);
-          var oODataModel = this._getODataModel();
-          var sKeyPath = "";
+          var oModel = this._getODataModel();
 
           if (!oTemplate) {
             MessageBox.error("Không tìm thấy template để cập nhật trạng thái.");
             return;
           }
 
-          try {
-            sKeyPath = this._buildHeaderKey(oTemplate);
-          } catch (e) {
-            MessageBox.error("Không tạo được key để cập nhật trạng thái.");
+          this._setBusy(true);
+
+          var fnUpdateDraftAndActivate = function (oDraft) {
+            var sDraftPath = oModel.createKey("/EmailHeader", {
+              DbKey: oDraft.DbKey,
+              IsActiveEntity: false
+            });
+
+            oModel.update(
+              sDraftPath,
+              {
+                IsActive: bState
+              },
+              {
+                headers: {
+                  "If-Match": (oDraft.__metadata && oDraft.__metadata.etag) || "*"
+                },
+                success: function () {
+                  oModel.callFunction("/EmailHeaderActivate", {
+                    method: "POST",
+                    urlParameters: {
+                      DbKey: oDraft.DbKey,
+                      IsActiveEntity: false
+                    },
+                    success: function () {
+                      this._setBusy(false);
+                      this._refreshAfterMutation(
+                        "Template " +
+                          oTemplate.TemplateId +
+                          " is now " +
+                          (bState ? "Active" : "Inactive")
+                      );
+                    }.bind(this),
+                    error: function (oError) {
+                      this._setBusy(false);
+                      MessageBox.error(
+                        this._extractODataError(oError, "Activate template thất bại.")
+                      );
+                      this._loadTemplates();
+                    }.bind(this)
+                  });
+                }.bind(this),
+                error: function (oError) {
+                  this._setBusy(false);
+                  MessageBox.error(
+                    this._extractODataError(oError, "Cập nhật draft thất bại.")
+                  );
+                  this._loadTemplates();
+                }.bind(this)
+              }
+            );
+          }.bind(this);
+
+          if (oTemplate.IsActiveEntity === false) {
+            fnUpdateDraftAndActivate(oTemplate);
             return;
           }
 
-          this._setBusy(true);
+          var sETag =
+            (oTemplate.__metadata && oTemplate.__metadata.etag) || "*";
 
-          oODataModel.update(
-            sKeyPath,
-            {
-              IsActive: bState,
+          oModel.callFunction("/EmailHeaderEdit", {
+            method: "POST",
+            headers: {
+              "If-Match": sETag
             },
-            {
-              success: function () {
-                this._setBusy(false);
-                this._refreshAfterMutation(
-                  "Template " +
-                    oTemplate.TemplateId +
-                    " is now " +
-                    (bState ? "Active" : "Inactive"),
-                );
-              }.bind(this),
-              error: function (oError) {
-                this._setBusy(false);
-                MessageBox.error(
-                  this._extractODataError(
-                    oError,
-                    "Không cập nhật được trạng thái template.",
-                  ),
-                );
-                this._loadTemplates();
-              }.bind(this),
+            urlParameters: {
+              DbKey: oTemplate.DbKey,
+              IsActiveEntity: true,
+              PreserveChanges: true
             },
-          );
+            success: function (oDraft) {
+              fnUpdateDraftAndActivate(oDraft);
+            }.bind(this),
+            error: function (oError) {
+              this._setBusy(false);
+              MessageBox.error(
+                this._extractODataError(oError, "Không thể tạo draft để cập nhật trạng thái.")
+              );
+              this._loadTemplates();
+            }.bind(this)
+          });
         },
 
         // =========================================================
@@ -449,7 +496,8 @@ sap.ui.define(
 
           var sHtml = oTemplate.BodyContent || "<div>No content</div>";
 
-          // Escape {{VAR}} để UI5 không parse nhầm
+          sHtml = this._sanitizePreviewHtml(sHtml);
+
           sHtml = sHtml
             .replace(/{{/g, "&#123;&#123;")
             .replace(/}}/g, "&#125;&#125;");
@@ -476,27 +524,37 @@ sap.ui.define(
             return "";
           }
 
-          var aLines = String(sContent).split("\n");
+          var sText = String(sContent || "")
+            .replace(/<br\s*\/?>/gi, "\n")
+            .replace(/<\/p>/gi, "\n")
+            .replace(/<[^>]*>/g, "")
+            .replace(/&nbsp;/g, " ");
+
+          var aLines = sText
+            .split("\n")
+            .map(function (sLine) {
+              return String(sLine || "").trim();
+            })
+            .filter(Boolean);
+
           var sSubjectLine = aLines.find(function (sLine) {
-            return sLine && sLine.trim().indexOf("Subject:") === 0;
+            return /^subject\s*[:=]\s*/i.test(sLine);
           });
 
           if (sSubjectLine) {
-            return sSubjectLine.replace(/^Subject:\s*/i, "").trim();
+            return sSubjectLine
+              .replace(/^subject\s*[:=]\s*/i, "")
+              .replace(/^["']|["']$/g, "")
+              .trim();
           }
 
-          return sContent.length > 80
-            ? sContent.substring(0, 80) + "..."
-            : sContent;
+          return "";
         },
 
         _removeSubjectLine: function (sContent) {
           return String(sContent || "")
-            .split("\n")
-            .filter(function (sLine) {
-              return !/^Subject:\s*/i.test(String(sLine || "").trim());
-            })
-            .join("\n")
+            .replace(/<p>\s*subject\s*[:=][\s\S]*?<br\s*\/?>/i, "<p>")
+            .replace(/^subject\s*[:=].*$/gim, "")
             .trim();
         },
 
@@ -515,9 +573,25 @@ sap.ui.define(
           }
         },
 
-        _isValidEmail: function (sEmail) {
-          return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(sEmail || "").trim());
-        },
+        _canUseTemplate: function (oTemplate) {
+          if (!oTemplate) {
+            MessageBox.error("Template not found.");
+            return false;
+          }
+
+          if (oTemplate.IsActiveEntity === false) {
+            MessageBox.warning("Draft template cannot be used.");
+            return false;
+          }
+
+          if (oTemplate.IsActive !== true) {
+            MessageBox.warning("Inactive template cannot be used. Please activate it first.");
+            return false;
+          }
+
+          return true;
+        }
+
       },
     );
   },

@@ -119,7 +119,7 @@ sap.ui.define(
           SentBy: oItem.SentBy || "",
           SentDate: oItem.SentDate || null,
           SentTime: oItem.SentTime || "",
-          SentAtText: this._formatSentAt(oItem.SentDate, oItem.SentTime),
+          SentAtText: this._formatDateTime(oItem.SentDate),
           Status: sStatusCode,
           SenderEmail: oItem.SenderEmail || "",
           StatusText: oStatusInfo.text,
@@ -217,49 +217,35 @@ sap.ui.define(
         };
       },
 
-      _formatSentAt: function (vDate, vTime) {
-        if (!vDate) {
+      _formatDateTime: function (vDateTime) {
+        if (!vDateTime) {
           return "-";
         }
 
-        let oDate = null;
+        var oDate;
 
-        // OData V2 Date string: /Date(1711929600000)/
-        if (typeof vDate === "string" && vDate.indexOf("/Date(") === 0) {
-          oDate = new Date(parseInt(vDate.replace(/[^0-9]/g, ""), 10));
-        }
-        // JS Date object
-        else if (vDate instanceof Date) {
-          oDate = vDate;
-        }
-        // OData date object or other object forms
-        else if (typeof vDate === "object") {
-          if (vDate.ms !== undefined) {
-            oDate = new Date(vDate.ms);
-          } else if (vDate.__edmType === "Edm.DateTime" && vDate.value) {
-            oDate = new Date(vDate.value);
-          } else {
-            oDate = new Date(vDate);
-          }
-        }
-        // fallback
-        else {
-          oDate = new Date(vDate);
+        if (vDateTime instanceof Date) {
+          oDate = vDateTime;
+        } else if (typeof vDateTime === "string" && vDateTime.indexOf("/Date(") === 0) {
+          var iTime = parseInt(vDateTime.replace(/[^0-9-]/g, ""), 10);
+          oDate = new Date(iTime);
+        } else {
+          oDate = new Date(vDateTime);
         }
 
         if (!oDate || isNaN(oDate.getTime())) {
           return "-";
         }
 
-        const sTime = this._durationToTime(vTime);
+        var sDay = String(oDate.getDate()).padStart(2, "0");
+        var sMonth = String(oDate.getMonth() + 1).padStart(2, "0");
+        var sYear = oDate.getFullYear();
 
-        const sDay = String(oDate.getDate()).padStart(2, "0");
-        const sMonth = String(oDate.getMonth() + 1).padStart(2, "0");
-        const sYear = oDate.getFullYear();
+        var sHour = String(oDate.getHours()).padStart(2, "0");
+        var sMinute = String(oDate.getMinutes()).padStart(2, "0");
+        var sSecond = String(oDate.getSeconds()).padStart(2, "0");
 
-        return sTime
-          ? sTime + ", " + sDay + "/" + sMonth + "/" + sYear
-          : sDay + "/" + sMonth + "/" + sYear;
+        return sHour + ":" + sMinute + ":" + sSecond + ", " + sDay + "/" + sMonth + "/" + sYear;
       },
 
       onOpenAttachment: function (oEvent) {
@@ -286,55 +272,6 @@ sap.ui.define(
           ")/$value";
 
         window.open(sUrl, "_blank");
-      },
-
-      _durationToTime: function (vDuration) {
-        if (!vDuration) {
-          return "";
-        }
-
-        // OData V2 Edm.Time thường có dạng { ms: 49541000, __edmType: "Edm.Time" }
-        if (typeof vDuration === "object") {
-          if (vDuration.ms !== undefined) {
-            const iTotalSeconds = Math.floor(vDuration.ms / 1000);
-            const iHours = Math.floor(iTotalSeconds / 3600);
-            const iMinutes = Math.floor((iTotalSeconds % 3600) / 60);
-            const iSeconds = iTotalSeconds % 60;
-
-            return [
-              String(iHours).padStart(2, "0"),
-              String(iMinutes).padStart(2, "0"),
-              String(iSeconds).padStart(2, "0"),
-            ].join(":");
-          }
-
-          return "";
-        }
-
-        if (typeof vDuration === "string") {
-          const aMatch = /PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/.exec(vDuration);
-
-          if (aMatch) {
-            const sHours = String(parseInt(aMatch[1] || "0", 10)).padStart(
-              2,
-              "0",
-            );
-            const sMinutes = String(parseInt(aMatch[2] || "0", 10)).padStart(
-              2,
-              "0",
-            );
-            const sSeconds = String(parseInt(aMatch[3] || "0", 10)).padStart(
-              2,
-              "0",
-            );
-
-            return sHours + ":" + sMinutes + ":" + sSeconds;
-          }
-
-          return vDuration;
-        }
-
-        return "";
       },
 
       onSearch: function () {
@@ -377,7 +314,7 @@ sap.ui.define(
           dStart.setHours(0, 0, 0, 0);
 
           const dEnd = new Date(dTo);
-          dEnd.setHours(0, 0, 0, 0);
+          dEnd.setHours(23, 59, 59, 999);
 
           aFilters.push(
             new Filter("SentDate", FilterOperator.BT, dStart, dEnd),

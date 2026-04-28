@@ -129,7 +129,7 @@
                         <Text text="Template" />
                     </Column>
                     <Column>
-                        <Text text="Sender Email" />
+                        <Text text="Recipient Email" />
                     </Column>
                     <Column>
                         <Text text="Processed By" />

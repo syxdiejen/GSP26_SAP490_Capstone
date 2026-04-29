@@ -15,26 +15,26 @@
 
                 <f:actions>
                     <Button
-                        text="Publish"
+                        text="{i18n>publish}"
                         type="Accept"
                         icon="sap-icon://activate"
                         press=".onActivatePress" />
 
                     <Button
-                        text="Save as Draft"
+                        text="{i18n>saveAsDraft}"
                         type="Emphasized"
                         icon="sap-icon://save"
                         press=".onSavePress" />
 
                     <Button
-                        text="Delete"
+                        text="{i18n>delete}"
                         type="Reject"
                         icon="sap-icon://delete"
                         press=".onDeletePress"
                         visible="{= ${viewState>/isCreate} === false }" />
 
                     <Button
-                        text="Cancel"
+                        text="{i18n>cancel}"
                         type="Transparent"
                         press=".onCancelPress" />
                 </f:actions>
@@ -44,7 +44,7 @@
         <f:content>
             <VBox class="sapUiContentPadding">
                 <Panel
-                    headerText="General Information"
+                    headerText="{i18n>generalInformation}"
                     expandable="false"
                     class="sapUiResponsiveMargin">
 
@@ -64,30 +64,30 @@
                         columnsL="1"
                         columnsM="1">
 
-                        <Label text="Signature ID" />
+                        <Label text="{i18n>signatureId}" />
                         <Input value="{SignId}" editable="false" />
 
-                        <Label text="Signature Name" required="true" />
+                        <Label text="{i18n>signatureName}" required="true" />
                         <Input
                             id="inpSignName"
                             value="{SignName}"
-                            placeholder="Enter signature name"
+                            placeholder="{i18n>enterSignatureName}"
                             liveChange=".onSignNameChange" />
 
-                        <Label text="Default Signature" />
+                        <Label text="{i18n>defaultSignature}" />
                         <Switch
                             id="swDefault"
                             state="{IsDefault}"
-                            customTextOn="Yes"
-                            customTextOff="No" />
+                            customTextOn="{i18n>yes}"
+                            customTextOff="{i18n>no}" />
 
-                        <Label text="Owner" />
+                        <Label text="{i18n>owner}" />
                         <Input value="{OwnerId}" editable="false" />
                     </form:SimpleForm>
                 </Panel>
 
                 <Panel
-                    headerText="Signature Content"
+                    headerText="{i18n>signatureContent}"
                     expandable="false"
                     class="sapUiResponsiveMargin sapUiSmallMarginTop">
 

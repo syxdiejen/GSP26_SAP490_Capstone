@@ -3,22 +3,23 @@
     xmlns:mvc="sap.ui.core.mvc"
     xmlns="sap.m"
     xmlns:core="sap.ui.core"
-    xmlns:f="sap.f">
+    xmlns:f="sap.f"
+    >
 
     <f:DynamicPage id="signListPage">
         <f:title>
             <f:DynamicPageTitle>
                 <f:heading>
-                    <Title text="User Signatures" level="H1" />
+                    <Title text="{i18n>userSignaturesTitle}" level="H1" />
                 </f:heading>
 
                 <f:expandedContent>
-                    <Label text="Manage your email signatures." />
+                    <Label text="{i18n>userSignaturesSubtitle}" />
                 </f:expandedContent>
 
                 <f:actions>
                     <Button
-                        text="Create"
+                        text="{i18n>create}"
                         type="Emphasized"
                         icon="sap-icon://add"
                         press=".onCreatePress" />
@@ -32,12 +33,12 @@
                     <SearchField
                         id="searchField"
                         width="320px"
-                        placeholder="Search by Signature Name"
+                        placeholder="{i18n>searchBySignatureName}"
                         search=".onSearch"
                         class="sapUiSmallMarginEnd sapUiSmallMarginBottom" />
 
                     <Label
-                        text="Type"
+                        text="{i18n>type}"
                         class="sapUiSmallMarginBegin sapUiSmallMarginEnd sapUiSmallMarginBottom" />
 
                     <Select
@@ -46,15 +47,15 @@
                         change=".onDefaultChange"
                         class="sapUiSmallMarginEnd sapUiSmallMarginBottom">
                         <items>
-                            <core:Item key="ALL" text="All" />
-                            <core:Item key="DEFAULT" text="Default" />
-                            <core:Item key="NONDEFAULT" text="Non Default" />
-                            <core:Item key="DRAFT" text="Draft" />
+                            <core:Item key="ALL" text="{i18n>all}" />
+                            <core:Item key="DEFAULT" text="{i18n>default}" />
+                            <core:Item key="NONDEFAULT" text="{i18n>nonDefault}" />
+                            <core:Item key="DRAFT" text="{i18n>draft}" />
                         </items>
                     </Select>
 
                     <Button
-                        text="Go"
+                        text="{i18n>go}"
                         type="Emphasized"
                         icon="sap-icon://search"
                         press=".onGoPress"
@@ -77,29 +78,29 @@
 
                 <headerToolbar>
                     <OverflowToolbar>
-                        <Title text="Signatures" level="H2" />
+                        <Title text="{i18n>signatures}" level="H2" />
                     </OverflowToolbar>
                 </headerToolbar>
 
                 <columns>
                     <Column minScreenWidth="Tablet" demandPopin="true">
-                        <Text text="Signature Name" />
+                        <Text text="{i18n>signatureName}" />
                     </Column>
 
                     <Column width="8rem" hAlign="Center">
-                        <Text text="Default" />
+                        <Text text="{i18n>default}" />
                     </Column>
 
                     <Column minScreenWidth="Tablet" demandPopin="true">
-                        <Text text="Owner" />
+                        <Text text="{i18n>owner}" />
                     </Column>
 
                     <Column minScreenWidth="Tablet" demandPopin="true">
-                        <Text text="Last Changed" />
+                        <Text text="{i18n>lastChanged}" />
                     </Column>
 
                     <Column minScreenWidth="Tablet" demandPopin="true" hAlign="End">
-                        <Text text="Actions" />
+                        <Text text="{i18n>actions}" />
                     </Column>
                 </columns>
 
@@ -111,32 +112,39 @@
                                     <Text text="{SignName}" wrapping="false" />
 
                                     <ObjectStatus
-                                        text="Draft"
+                                        text="{i18n>draft}"
                                         state="Information"
                                         visible="{= ${IsActiveEntity} === false }"
                                         class="sapUiTinyMarginBegin" />
 
                                     <ObjectStatus
-                                        text="Default"
+                                        text="{i18n>default}"
                                         state="Success"
                                         visible="{= ${IsDefault} === true }"
                                         class="sapUiTinyMarginBegin" />
                                 </HBox>
 
                                 <Text
-                                    text="Unsaved Changes"
+                                    text="{i18n>unsavedChanges}"
                                     visible="{= ${HasDraftEntity} === true &amp;&amp; ${IsActiveEntity} === true }"
                                     class="sapUiTinyMarginTop sapUiTinyMarginBottom"
                                     wrapping="false" />
                             </VBox>
 
                             <ObjectStatus
-                                text="{= ${IsDefault} ? 'Yes' : 'No' }"
+                                text="{= ${IsDefault} ? ${i18n>yes} : ${i18n>no} }"
                                 state="{= ${IsDefault} ? 'Success' : 'None' }" />
 
                             <Text text="{OwnerId}" />
 
-                            <Text text="{LastChangedAt}" />
+                            <Text 
+                                text="{
+                                path: 'LastChangedAt',
+                                type: 'sap.ui.model.type.DateTime',
+                                formatOptions: {
+                                    pattern: 'dd/MM/yyyy HH:mm:ss'
+                                }
+                            }" />
 
                             <HBox justifyContent="End">
                                 <Button icon="sap-icon://edit" type="Transparent" press=".onEditPress" />

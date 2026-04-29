@@ -8,6 +8,7 @@ sap.ui.define(
     "sap/m/Dialog",
     "sap/m/Button",
     "sap/ui/core/HTML",
+    "zemail/template/app/util/ErrorHandler"
   ],
   function (
     Controller,
@@ -18,6 +19,7 @@ sap.ui.define(
     Dialog,
     Button,
     HTML,
+    ErrorHandler
   ) {
     "use strict";
 
@@ -69,6 +71,12 @@ sap.ui.define(
           this._getEmailModel().setProperty("/Busy", !!bBusy);
         },
 
+        _getBundle: function () {
+          return this.getOwnerComponent()
+            .getModel("i18n")
+            .getResourceBundle();
+        },
+
         // =========================================================
         // 3. LOAD / MAP / FILTER DATA
         // =========================================================
@@ -96,15 +104,15 @@ sap.ui.define(
             }.bind(this),
             error: function (oError) {
               this._setBusy(false);
-              MessageBox.error(
-                this._extractODataError(
-                  oError,
-                  "Không tải được dữ liệu template từ backend.",
-                ),
-              );
-              /* eslint-disable no-console */
-              console.error("Load templates error:", oError);
-              /* eslint-enable no-console */
+                console.log("RAW ERROR:", oError);
+
+                console.log(
+                  "PARSED MESSAGE:",
+                  ErrorHandler.extractMessage(oError, this._getBundle())
+                );
+
+                ErrorHandler.show(oError, this._getBundle(), "loadTemplateFailed");
+
             }.bind(this),
           });
         },
@@ -114,7 +122,7 @@ sap.ui.define(
             oItem.to_Body && Array.isArray(oItem.to_Body.results)
               ? oItem.to_Body.results
               : [];
-          //           var aVariables = oItem.to_Variables && Array.isArray(oItem.to_Variables.results) ? oItem.to_Variables.results : [];
+        
           var sFullContent = aBodies
             .map(function (oBody) {
               return oBody.Content || "";
@@ -295,12 +303,7 @@ sap.ui.define(
               });
             }.bind(this),
             error: function (oError) {
-              MessageBox.error(
-                this._extractODataError(
-                  oError,
-                  "Không thể mở draft để chỉnh sửa.",
-                ),
-              );
+              ErrorHandler.show(oError, this._getBundle(), "openDraftFailed");
               /* eslint-disable no-console */
               console.error(oError);
               /* eslint-enable no-console */
@@ -325,7 +328,7 @@ sap.ui.define(
           var oData = oContext.getObject();
           var oModel = this._getODataModel();
 
-          MessageBox.confirm("Are you sure you want to delete this template?", {
+          MessageBox.confirm(this._getBundle().getText("deleteTemplateConfirm"), {
               onClose: function (sAction) {
                   if (sAction !== MessageBox.Action.OK) {
                       return;
@@ -339,11 +342,11 @@ sap.ui.define(
                               IsActiveEntity: false
                           },
                           success: function () {
-                              MessageToast.show("Draft discarded");
+                              MessageToast.show(this._getBundle().getText("draftDiscarded"));
                               this._loadTemplates();
                           }.bind(this),
                           error: function (oError) {
-                              MessageBox.error("Discard failed");
+                              ErrorHandler.show(oError, this._getBundle(), "discardFailed");
                               console.error(oError);
                           }
                       });
@@ -357,13 +360,11 @@ sap.ui.define(
 
                   oModel.remove(sDeletePath, {
                     success: function () {
-                      MessageToast.show("Deleted successfully");
+                      MessageToast.show(this._getBundle().getText("deleteSuccess"));
                       this._loadTemplates();
                     }.bind(this),
                     error: function (oError) {
-                      MessageBox.error(
-                        this._extractODataError(oError, "Delete failed")
-                      );
+                      ErrorHandler.show(oError, this._getBundle(), "deleteFailed");
                       console.error(oError);
                     }.bind(this)
                   });
@@ -377,7 +378,7 @@ sap.ui.define(
           var oModel = this._getODataModel();
 
           if (!oTemplate) {
-            MessageBox.error("Không tìm thấy template để cập nhật trạng thái.");
+            MessageBox.error(this._getBundle().getText("templateNotFoundForStatusUpdate"));
             return;
           }
 
@@ -408,26 +409,22 @@ sap.ui.define(
                     success: function () {
                       this._setBusy(false);
                       this._refreshAfterMutation(
-                        "Template " +
-                          oTemplate.TemplateId +
-                          " is now " +
-                          (bState ? "Active" : "Inactive")
+                        this._getBundle().getText("templateStatusChanged", [
+                          oTemplate.TemplateId,
+                          bState ? this._getBundle().getText("active") : this._getBundle().getText("inactive")
+                        ])
                       );
                     }.bind(this),
                     error: function (oError) {
                       this._setBusy(false);
-                      MessageBox.error(
-                        this._extractODataError(oError, "Activate template thất bại.")
-                      );
+                      ErrorHandler.show(oError, this._getBundle(), "activateFailed");
                       this._loadTemplates();
                     }.bind(this)
                   });
                 }.bind(this),
                 error: function (oError) {
                   this._setBusy(false);
-                  MessageBox.error(
-                    this._extractODataError(oError, "Cập nhật draft thất bại.")
-                  );
+                  ErrorHandler.show(oError, this._getBundle(), "updateDraftFailed");
                   this._loadTemplates();
                 }.bind(this)
               }
@@ -457,9 +454,7 @@ sap.ui.define(
             }.bind(this),
             error: function (oError) {
               this._setBusy(false);
-              MessageBox.error(
-                this._extractODataError(oError, "Không thể tạo draft để cập nhật trạng thái.")
-              );
+              ErrorHandler.show(oError, this._getBundle(), "createDraftFailed");
               this._loadTemplates();
             }.bind(this)
           });
@@ -472,19 +467,19 @@ sap.ui.define(
           var oTemplate = this._getSelectedTemplate(oEvent);
 
           if (!oTemplate) {
-            MessageBox.error("Không tìm thấy template.");
+            MessageBox.error(this._getBundle().getText("templateNotFound"));
             return;
           }
 
           if (!this._oPreviewDialog) {
             this._oPreviewDialog = new Dialog({
-              title: "Preview Template",
+              title: this._getBundle().getText("previewTemplateTitle"),
               contentWidth: "800px",
               contentHeight: "500px",
               resizable: true,
               draggable: true,
               endButton: new Button({
-                text: "Close",
+                text: this._getBundle().getText("close"),
                 press: function () {
                   this._oPreviewDialog.close();
                 }.bind(this),
@@ -494,7 +489,7 @@ sap.ui.define(
             this.getView().addDependent(this._oPreviewDialog);
           }
 
-          var sHtml = oTemplate.BodyContent || "<div>No content</div>";
+          var sHtml = oTemplate.BodyContent || "<div>" + this._getBundle().getText("noContent") + "</div>";
 
           sHtml = this._sanitizePreviewHtml(sHtml);
 
@@ -564,33 +559,24 @@ sap.ui.define(
             .trim();
         },
 
-        _extractODataError: function (oError, sFallback) {
-          try {
-            var oResponse = JSON.parse(oError.responseText);
-            return oResponse.error.message.value || sFallback;
-          } catch (e) {
-            return sFallback || "Operation failed";
-          }
-        },
-
         _canUseTemplate: function (oTemplate) {
           if (!oTemplate) {
-            MessageBox.error("Template not found.");
+            MessageBox.error(this._getBundle().getText("templateNotFound"));
             return false;
           }
 
           if (oTemplate.IsActiveEntity === false) {
-            MessageBox.warning("Draft template cannot be used.");
+            MessageBox.warning(this._getBundle().getText("draftTemplateCannotBeUsed"));
             return false;
           }
 
           if (oTemplate.IsActive !== true) {
-            MessageBox.warning("Inactive template cannot be used. Please activate it first.");
+            MessageBox.warning(this._getBundle().getText("inactiveTemplateCannotBeUsed"));
             return false;
           }
 
           return true;
-        }
+        },
 
       },
     );

@@ -84,9 +84,9 @@ sap.ui.define(
         this.getView().setModel(
           new JSONModel({
             items: [],
-            selectedKey: ""
+            selectedKey: "",
           }),
-          "signature"
+          "signature",
         );
 
         this.getOwnerComponent()
@@ -205,14 +205,14 @@ sap.ui.define(
 
         oModel.read("/UserSignature", {
           urlParameters: {
-            "$format": "json"
+            $format: "json",
           },
           success: function (oData) {
             oSigModel.setProperty("/items", oData.results || []);
           },
           error: function () {
             sap.m.MessageToast.show("Không tải được danh sách chữ ký");
-          }
+          },
         });
       },
 
@@ -258,7 +258,9 @@ sap.ui.define(
         }
 
         var sSignature = oSelected.Content;
-        var sCurrentMode = this.getView().getModel("ui").getProperty("/bodyEditMode");
+        var sCurrentMode = this.getView()
+          .getModel("ui")
+          .getProperty("/bodyEditMode");
         var sCurrentValue = "";
 
         if (sCurrentMode === "visual") {
@@ -281,7 +283,7 @@ sap.ui.define(
         oPreviewModel.setProperty("/BodyContent", sNewValue);
         oPreviewModel.setProperty(
           "/BodyContentPreview",
-          "<div class='safe-preview-wrapper'>" + sNewValue + "</div>"
+          "<div class='safe-preview-wrapper'>" + sNewValue + "</div>",
         );
 
         sap.m.MessageToast.show("Đã chèn chữ ký");
@@ -512,12 +514,10 @@ sap.ui.define(
             .join(v.value || "");
 
           // Gom biến để lát gửi xuống SAP ghi Log
-          if (v.value && v.value.trim() !== "") {
-            aVarsForABAP.push({
-              VAR_NAME: v.name,
-              VAR_VALUE: v.value.trim(),
-            });
-          }
+          aVarsForABAP.push({
+            VAR_NAME: v.name,
+            VAR_VALUE: v.value ? v.value.trim() : "",
+          });
         });
 
         // Đóng gói JSON mảng biến cho ABAP

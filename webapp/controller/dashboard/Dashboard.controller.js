@@ -1,16 +1,22 @@
 sap.ui.define([
     "sap/ui/core/mvc/Controller",
-    "sap/ui/model/json/JSONModel"
-], function (Controller, JSONModel) {
+    "sap/ui/model/json/JSONModel",
+    "zemail/template/app/util/ErrorHandler"
+], function (Controller, JSONModel, ErrorHandler) {
     "use strict";
 
     return Controller.extend("zemail.template.app.controller.dashboard.Dashboard", {
+
+        // ======================
+        // Lifecycle
+        // ======================
 
         onInit: function () {
             this._loadEmailTemplateKPI();
             this._loadEmailLogKPI();
             this._loadTemplateByCategoryChart();
             this._loadEmailTrafficByMonthChart();
+
             var oDonutCategory = this.byId("idDonutTemplateByCategory");
             if (oDonutCategory) {
                 oDonutCategory.setVizProperties({
@@ -38,10 +44,10 @@ sap.ui.define([
                 oColumnChart.setVizProperties({
                     title: { visible: false },
                     valueAxis: {
-                        title: { visible: true, text: "Emails" }
+                        title: { visible: true, text: this._getText("emails") }
                     },
                     categoryAxis: {
-                        title: { visible: true, text: "Month" }
+                        title: { visible: true, text: this._getText("month") }
                     },
                     plotArea: {
                         dataLabel: { visible: true }
@@ -51,28 +57,29 @@ sap.ui.define([
                     }
                 });
             }
-
         },
+
+        // ======================
+        // KPI Loading
+        // ======================
 
         _loadEmailTemplateKPI: function () {
             var oModel = this.getOwnerComponent().getModel();
 
-            var oJSONModel = new sap.ui.model.json.JSONModel({
+            var oJSONModel = new JSONModel({
                 emailtemplate: {
                     totalTemplates: 0,
                     activeTemplates: 0,
                     draftTemplates: 0,
                     usageRate: "0"
                 },
-
                 emaillog: {
                     totalEmailSent: 0,
                     totalSuccess: 0,
                     totalFailed: 0,
                     totalInProcess: 0
                 },
-
-                    charts: {
+                charts: {
                     templateByCategory: [],
                     emailHealth: [],
                     emailTrafficByMonth: [],
@@ -82,14 +89,12 @@ sap.ui.define([
 
             this.getView().setModel(oJSONModel, "dashboard");
 
-            // 👉 Total
             oModel.read("/EmailHeader/$count", {
                 success: function (oData) {
                     oJSONModel.setProperty("/emailtemplate/totalTemplates", parseInt(oData));
                 }
             });
 
-            // 👉 Active (đã activate)
             oModel.read("/EmailHeader/$count", {
                 urlParameters: {
                     "$filter": "IsActiveEntity eq true"
@@ -99,7 +104,6 @@ sap.ui.define([
                 }
             });
 
-            // 👉 Draft
             oModel.read("/EmailHeader/$count", {
                 urlParameters: {
                     "$filter": "IsActiveEntity eq false"
@@ -139,18 +143,16 @@ sap.ui.define([
                         }
 
                         aTopUsedTemplates.push({
-                            templateName: item.TemplateName || "Unknown Template",
+                            templateName: item.TemplateName || this._getText("unknownTemplate"),
                             value: iTemplateEmails
                         });
-                    });
+                    }.bind(this));
 
-                    // KPI
                     oJSONModel.setProperty("/emaillog/totalEmailSent", iTotal);
                     oJSONModel.setProperty("/emaillog/totalSuccess", iSuccess);
                     oJSONModel.setProperty("/emaillog/totalFailed", iFailed);
                     oJSONModel.setProperty("/emaillog/totalInProcess", iOpen);
 
-                    // Usage rate
                     var iActiveTemplates = oJSONModel.getProperty("/emailtemplate/activeTemplates") || 0;
                     var fUsageRate = 0;
 
@@ -160,23 +162,21 @@ sap.ui.define([
 
                     oJSONModel.setProperty("/emailtemplate/usageRate", fUsageRate.toFixed(1));
 
-                    // Email health donut
                     oJSONModel.setProperty("/charts/emailHealth", [
                         {
-                            status: "Success",
+                            status: this._getText("success"),
                             value: iOpen
                         },
                         {
-                            status: "Failed",
+                            status: this._getText("failed"),
                             value: iFailed
                         },
                         {
-                            status: "In Process",
+                            status: this._getText("inProcess"),
                             value: iSuccess
                         }
                     ]);
 
-                    // Top used templates bar chart
                     aTopUsedTemplates = aTopUsedTemplates
                         .filter(function (item) {
                             return item.value > 0;
@@ -187,14 +187,19 @@ sap.ui.define([
                         .slice(0, 5);
 
                     oJSONModel.setProperty("/charts/topUsedTemplates", aTopUsedTemplates);
-                },
+                }.bind(this),
+
                 error: function (oError) {
-                    console.error("Error loading Statistic", oError);
+                    ErrorHandler.show(oError, this._getBundle(), "dashboardStatisticLoadFailed");
                     oJSONModel.setProperty("/charts/emailHealth", []);
                     oJSONModel.setProperty("/charts/topUsedTemplates", []);
-                }
+                }.bind(this)
             });
         },
+
+        // ======================
+        // Chart Loading
+        // ======================
 
         _loadTemplateByCategoryChart: function () {
             var oModel = this.getOwnerComponent().getModel();
@@ -207,14 +212,14 @@ sap.ui.define([
                     var aChartData = [];
 
                     aResults.forEach(function (item) {
-                        var sCategory = item.Category || "Others";
+                        var sCategory = item.Category || this._getText("others");
 
                         if (!mCategoryCount[sCategory]) {
                             mCategoryCount[sCategory] = 0;
                         }
 
                         mCategoryCount[sCategory]++;
-                    });
+                    }.bind(this));
 
                     Object.keys(mCategoryCount).forEach(function (sCategory) {
                         aChartData.push({
@@ -224,13 +229,12 @@ sap.ui.define([
                     });
 
                     oJSONModel.setProperty("/charts/templateByCategory", aChartData);
+                }.bind(this),
 
-                    
-                },
                 error: function (oError) {
-                    console.error("Error loading Template by Category chart", oError);
+                    ErrorHandler.show(oError, this._getBundle(), "dashboardTemplateCategoryLoadFailed");
                     oJSONModel.setProperty("/charts/templateByCategory", []);
-                }
+                }.bind(this)
             });
         },
 
@@ -251,7 +255,6 @@ sap.ui.define([
 
                         var oDate = item.SentDate;
 
-                        // OData V2 Date format: /Date(1711929600000)/
                         if (typeof oDate === "string" && oDate.indexOf("/Date(") === 0) {
                             oDate = new Date(parseInt(oDate.replace(/[^0-9]/g, ""), 10));
                         } else {
@@ -264,7 +267,6 @@ sap.ui.define([
 
                         var iMonth = oDate.getMonth() + 1;
                         var iYear = oDate.getFullYear();
-
                         var sMonthKey = iYear + "-" + (iMonth < 10 ? "0" + iMonth : iMonth);
 
                         if (!mMonthCount[sMonthKey]) {
@@ -285,11 +287,27 @@ sap.ui.define([
 
                     oJSONModel.setProperty("/charts/emailTrafficByMonth", aChartData);
                 },
+
                 error: function (oError) {
-                    console.error("Error loading Email traffic by month", oError);
+                    ErrorHandler.show(oError, this._getBundle(), "dashboardEmailTrafficLoadFailed");
                     oJSONModel.setProperty("/charts/emailTrafficByMonth", []);
-                }
+                }.bind(this)
             });
         },
+
+        // ======================
+        // i18n Helpers
+        // ======================
+
+        _getBundle: function () {
+            return this.getOwnerComponent()
+                .getModel("i18n")
+                .getResourceBundle();
+        },
+
+        _getText: function (sKey, aArgs) {
+            return this._getBundle().getText(sKey, aArgs);
+        }
+
     });
 });

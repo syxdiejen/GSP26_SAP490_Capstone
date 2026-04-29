@@ -15,7 +15,7 @@ sap.ui.define(
     "sap/ui/core/HTML",
     "sap/m/BusyDialog",
     "sap/m/MessageToast",
-    "sap/m/MessageBox",
+    "zemail/template/app/util/ErrorHandler"
   ],
   function (
     Controller,
@@ -33,23 +33,32 @@ sap.ui.define(
     HTML,
     BusyDialog,
     MessageToast,
-    MessageBox,
+    ErrorHandler
   ) {
     "use strict";
 
     return Controller.extend("zemail.template.app.controller.logs.EmailLogs", {
+
+      // ======================
+      // Lifecycle
+      // ======================
+
       onInit: function () {
         this._oBusy = new BusyDialog();
 
         const oVM = new JSONModel({
           logs: [],
           selectedLog: null,
-          details: [],
+          details: []
         });
 
         this.getView().setModel(oVM, "vm");
         this._loadEmailLogs();
       },
+
+      // ======================
+      // Model Helpers
+      // ======================
 
       getODataModel: function () {
         return this.getOwnerComponent().getModel();
@@ -58,6 +67,10 @@ sap.ui.define(
       getViewModel: function () {
         return this.getView().getModel("vm");
       },
+
+      // ======================
+      // Data Loading
+      // ======================
 
       _loadEmailLogs: function (aFilters, sRecipientQuery) {
         const oODataModel = this.getODataModel();
@@ -68,8 +81,9 @@ sap.ui.define(
         oODataModel.read("/EmailLog", {
           filters: aFilters || [],
           urlParameters: {
-            $expand: "to_Attachments,to_Details",
+            $expand: "to_Attachments,to_Details"
           },
+
           success: function (oData) {
             const aResults = (oData && oData.results) || [];
             const aMapped = aResults.map(this._mapHeaderLog.bind(this));
@@ -84,7 +98,7 @@ sap.ui.define(
                   oItem.Recipient,
                   oItem.RecipientTo,
                   oItem.RecipientCc,
-                  oItem.RecipientBcc,
+                  oItem.RecipientBcc
                 ].some(function (v) {
                   return (v || "").toLowerCase().includes(sNeedle);
                 });
@@ -94,12 +108,37 @@ sap.ui.define(
             oVM.setProperty("/logs", aFinal);
             this._oBusy.close();
           }.bind(this),
-          error: function () {
+
+          error: function (oError) {
             this._oBusy.close();
-            MessageBox.error("Không tải được Email Logs từ OData service.");
-          }.bind(this),
+            ErrorHandler.show(oError, this._getBundle(), "emailLogsLoadFailed");
+          }.bind(this)
         });
       },
+
+      _loadLogDetails: function (oLog) {
+        const oODataModel = this.getODataModel();
+        const sPath = "/EmailLog(guid'" + oLog.RunId + "')/to_Details";
+
+        this._oBusy.open();
+
+        oODataModel.read(sPath, {
+          success: function (oData) {
+            const aDetails = (oData && oData.results) || [];
+            this._openDetailDialog(oLog, aDetails);
+            this._oBusy.close();
+          }.bind(this),
+
+          error: function (oError) {
+            this._oBusy.close();
+            ErrorHandler.show(oError, this._getBundle(), "emailLogDetailLoadFailed");
+          }.bind(this)
+        });
+      },
+
+      // ======================
+      // Mapping Helpers
+      // ======================
 
       _mapHeaderLog: function (oItem) {
         const sStatusCode = oItem.Status || "";
@@ -109,7 +148,8 @@ sap.ui.define(
           (oItem.to_Attachments && oItem.to_Attachments.results) || [];
         const oFirstAttachment = aAttachments[0] || null;
 
-        const aDetails = (oItem.to_Details && oItem.to_Details.results) || [];
+        const aDetails =
+          (oItem.to_Details && oItem.to_Details.results) || [];
 
         const oRecipients = this._groupRecipients(aDetails);
 
@@ -137,22 +177,20 @@ sap.ui.define(
           Attachments: aAttachments,
           FileId: oFirstAttachment ? oFirstAttachment.FileId : null,
           MimeType: oFirstAttachment ? oFirstAttachment.MimeType || "" : "",
-          FileName: oFirstAttachment ? oFirstAttachment.FileName || "" : "",
+          FileName: oFirstAttachment ? oFirstAttachment.FileName || "" : ""
         };
       },
 
       _mapStatus: function (sStatus) {
         switch (sStatus) {
           case "O":
-            return { text: "Sent", state: "Success" };
+            return { text: this._getText("logStatusSent"), state: "Success" };
           case "E":
-            return { text: "Failed", state: "Error" };
+            return { text: this._getText("logStatusFailed"), state: "Error" };
           case "P":
-            return { text: "Pending", state: "Warning" };
-          // case "O":
-          //     return { text: "Processed", state: "Information" };
+            return { text: this._getText("logStatusPending"), state: "Warning" };
           default:
-            return { text: sStatus || "Unknown", state: "None" };
+            return { text: this._getText("logStatusUnknown"), state: "None" };
         }
       },
 
@@ -176,16 +214,19 @@ sap.ui.define(
                 aTo.push(sEmail);
               }
               break;
+
             case "CC":
               if (!aCc.includes(sEmail)) {
                 aCc.push(sEmail);
               }
               break;
+
             case "BCC":
               if (!aBcc.includes(sEmail)) {
                 aBcc.push(sEmail);
               }
               break;
+
             default:
               if (!aOther.includes(sEmail)) {
                 aOther.push(sEmail);
@@ -197,23 +238,26 @@ sap.ui.define(
         const aSummaryParts = [];
 
         if (aTo.length) {
-          aSummaryParts.push("TO: " + aTo.join(", "));
+          aSummaryParts.push(this._getText("recipientTo") + ": " + aTo.join(", "));
         }
+
         if (aCc.length) {
-          aSummaryParts.push("CC: " + aCc.join(", "));
+          aSummaryParts.push(this._getText("recipientCc") + ": " + aCc.join(", "));
         }
+
         if (aBcc.length) {
-          aSummaryParts.push("BCC: " + aBcc.join(", "));
+          aSummaryParts.push(this._getText("recipientBcc") + ": " + aBcc.join(", "));
         }
+
         if (aOther.length) {
-          aSummaryParts.push(aOther.join(", "));
+          aSummaryParts.push(this._getText("recipientOther") + ": " + aOther.join(", "));
         }
 
         return {
           to: aTo.join(", "),
           cc: aCc.join(", "),
           bcc: aBcc.join(", "),
-          summary: aSummaryParts.join(" | "),
+          summary: aSummaryParts.join(" | ")
         };
       },
 
@@ -248,88 +292,13 @@ sap.ui.define(
         return sHour + ":" + sMinute + ":" + sSecond + ", " + sDay + "/" + sMonth + "/" + sYear;
       },
 
-      onOpenAttachment: function (oEvent) {
-        const oContext = oEvent.getSource().getBindingContext("vm");
-
-        if (!oContext) {
-          return;
-        }
-
-        const oLog = oContext.getObject();
-
-        if (!oLog.RunId || oLog.FileId === null || oLog.FileId === undefined) {
-          MessageToast.show("Không có file đính kèm.");
-          return;
-        }
-
-        const sServiceUrl = this.getODataModel().sServiceUrl;
-        const sUrl =
-          sServiceUrl +
-          "/AttachmentLogs(RunId=guid'" +
-          oLog.RunId +
-          "',FileId=" +
-          oLog.FileId +
-          ")/$value";
-
-        window.open(sUrl, "_blank");
-      },
+      // ======================
+      // Filter Actions
+      // ======================
 
       onSearch: function () {
         const oFilterData = this._buildFilters();
         this._loadEmailLogs(oFilterData.filters, oFilterData.recipientQuery);
-      },
-
-      _buildFilters: function () {
-        const oView = this.getView();
-        const aFilters = [];
-
-        const oSearchField = oView.byId("sfRecipient");
-        const oStatusBox = oView.byId("mcbStatus");
-        const oDateRange = oView.byId("drsSentDate");
-
-        const sRecipient = (oSearchField.getValue() || "").trim();
-        const aStatuses = oStatusBox.getSelectedKeys();
-        const dFrom = oDateRange.getDateValue();
-        const dTo = oDateRange.getSecondDateValue();
-
-        // Không filter Recipient ở OData vì Recipient không thuộc EmailLogType
-        // Recipient chỉ có trong to_Details / client mapping
-
-        if (aStatuses.length === 1) {
-          aFilters.push(new Filter("Status", FilterOperator.EQ, aStatuses[0]));
-        } else if (aStatuses.length > 1) {
-          const aStatusFilters = aStatuses.map(function (sKey) {
-            return new Filter("Status", FilterOperator.EQ, sKey);
-          });
-          aFilters.push(
-            new Filter({
-              filters: aStatusFilters,
-              and: false,
-            }),
-          );
-        }
-
-        if (dFrom && dTo) {
-          const dStart = new Date(dFrom);
-          dStart.setHours(0, 0, 0, 0);
-
-          const dEnd = new Date(dTo);
-          dEnd.setHours(23, 59, 59, 999);
-
-          aFilters.push(
-            new Filter("SentDate", FilterOperator.BT, dStart, dEnd),
-          );
-        } else if (dFrom) {
-          const dSingle = new Date(dFrom);
-          dSingle.setHours(0, 0, 0, 0);
-
-          aFilters.push(new Filter("SentDate", FilterOperator.EQ, dSingle));
-        }
-
-        return {
-          filters: aFilters,
-          recipientQuery: sRecipient,
-        };
       },
 
       onClearFilter: function () {
@@ -346,9 +315,61 @@ sap.ui.define(
 
       onRefresh: function () {
         const oFilterData = this._buildFilters();
+
         this._loadEmailLogs(oFilterData.filters, oFilterData.recipientQuery);
-        MessageToast.show("Email logs refreshed");
+        MessageToast.show(this._getText("emailLogsRefreshed"));
       },
+
+      _buildFilters: function () {
+        const oView = this.getView();
+        const aFilters = [];
+
+        const oSearchField = oView.byId("sfRecipient");
+        const oStatusBox = oView.byId("mcbStatus");
+        const oDateRange = oView.byId("drsSentDate");
+
+        const sRecipient = (oSearchField.getValue() || "").trim();
+        const aStatuses = oStatusBox.getSelectedKeys();
+        const dFrom = oDateRange.getDateValue();
+        const dTo = oDateRange.getSecondDateValue();
+
+        if (aStatuses.length === 1) {
+          aFilters.push(new Filter("Status", FilterOperator.EQ, aStatuses[0]));
+        } else if (aStatuses.length > 1) {
+          const aStatusFilters = aStatuses.map(function (sKey) {
+            return new Filter("Status", FilterOperator.EQ, sKey);
+          });
+
+          aFilters.push(new Filter({
+            filters: aStatusFilters,
+            and: false
+          }));
+        }
+
+        if (dFrom && dTo) {
+          const dStart = new Date(dFrom);
+          dStart.setHours(0, 0, 0, 0);
+
+          const dEnd = new Date(dTo);
+          dEnd.setHours(23, 59, 59, 999);
+
+          aFilters.push(new Filter("SentDate", FilterOperator.BT, dStart, dEnd));
+        } else if (dFrom) {
+          const dSingle = new Date(dFrom);
+          dSingle.setHours(0, 0, 0, 0);
+
+          aFilters.push(new Filter("SentDate", FilterOperator.EQ, dSingle));
+        }
+
+        return {
+          filters: aFilters,
+          recipientQuery: sRecipient
+        };
+      },
+
+      // ======================
+      // UI Actions
+      // ======================
 
       onViewDetail: function (oEvent) {
         const oSource = oEvent.getSource();
@@ -362,24 +383,35 @@ sap.ui.define(
         this._loadLogDetails(oLog);
       },
 
-      _loadLogDetails: function (oLog) {
-        const oODataModel = this.getODataModel();
-        const sPath = "/EmailLog(guid'" + oLog.RunId + "')/to_Details";
+      onOpenAttachment: function (oEvent) {
+        const oContext = oEvent.getSource().getBindingContext("vm");
 
-        this._oBusy.open();
+        if (!oContext) {
+          return;
+        }
 
-        oODataModel.read(sPath, {
-          success: function (oData) {
-            const aDetails = (oData && oData.results) || [];
-            this._openDetailDialog(oLog, aDetails);
-            this._oBusy.close();
-          }.bind(this),
-          error: function () {
-            this._oBusy.close();
-            MessageBox.error("Không tải được chi tiết log.");
-          }.bind(this),
-        });
+        const oLog = oContext.getObject();
+
+        if (!oLog.RunId || oLog.FileId === null || oLog.FileId === undefined) {
+          MessageToast.show(this._getText("emailLogsNoAttachment"));
+          return;
+        }
+
+        const sServiceUrl = this.getODataModel().sServiceUrl;
+        const sUrl =
+          sServiceUrl +
+          "/AttachmentLogs(RunId=guid'" +
+          oLog.RunId +
+          "',FileId=" +
+          oLog.FileId +
+          ")/$value";
+
+        window.open(sUrl, "_blank");
       },
+
+      // ======================
+      // Dialog Helpers
+      // ======================
 
       _openDetailDialog: function (oLog, aDetails) {
         const oRecipients = this._groupRecipients(aDetails);
@@ -389,42 +421,46 @@ sap.ui.define(
         const sPlainContent =
           oLog.RawContent ||
           aDetails[0]?.Content ||
-          "No detail content available.";
+          this._getText("emailLogNoDetailContent");
         const bHasHtmlContent = !!sHtmlContent;
 
         if (!this._oDetailDialog) {
           this._oDetailDialog = new Dialog({
-            title: "Email Log Detail",
+            title: this._getText("emailLogDetailTitle"),
             contentWidth: "720px",
             contentHeight: "520px",
             resizable: true,
             draggable: true,
             verticalScrolling: true,
             endButton: new Button({
-              text: "Close",
+              text: this._getText("close"),
               press: function () {
                 this._oDetailDialog.close();
-              }.bind(this),
-            }),
+              }.bind(this)
+            })
           });
 
           this.getView().addDependent(this._oDetailDialog);
         }
 
         const aItems = [
-          new Title({ text: "General Information", level: "H4" }),
+          new Title({
+            text: this._getText("emailLogGeneralInformation"),
+            level: "H4"
+          }),
 
-          this._buildInfoRow("Template ID:", oLog.TemplateId || "-"),
-          this._buildInfoRow("Status:", oLog.StatusText || "-"),
-          this._buildInfoRow("Sent At:", oLog.SentAtText || "-"),
-          this._buildInfoRow("TO:", oRecipients.to || "-"),
-          this._buildInfoRow("CC:", oRecipients.cc || "-"),
-          this._buildInfoRow("BCC:", oRecipients.bcc || "-"),
-          this._buildInfoRow("File:", oLog.FileName || "-"),
+          this._buildInfoRow(this._getText("emailLogTemplateId"), oLog.TemplateId || "-"),
+          this._buildInfoRow(this._getText("emailLogStatus"), oLog.StatusText || "-"),
+          this._buildInfoRow(this._getText("emailLogSentAt"), oLog.SentAtText || "-"),
+          this._buildInfoRow(this._getText("recipientTo") + ":", oRecipients.to || "-"),
+          this._buildInfoRow(this._getText("recipientCc") + ":", oRecipients.cc || "-"),
+          this._buildInfoRow(this._getText("recipientBcc") + ":", oRecipients.bcc || "-"),
+          this._buildInfoRow(this._getText("emailLogFile"), oLog.FileName || "-"),
 
-          new Title({ text: "Content", level: "H4" }).addStyleClass(
-            "sapUiMediumMarginTop",
-          ),
+          new Title({
+            text: this._getText("emailLogContent"),
+            level: "H4"
+          }).addStyleClass("sapUiMediumMarginTop")
         ];
 
         if (bHasHtmlContent) {
@@ -433,8 +469,8 @@ sap.ui.define(
               content:
                 "<div style='padding:0.75rem;border:1px solid var(--sapList_BorderColor);border-radius:0.75rem;max-height:220px;overflow:auto;background:var(--sapGroup_ContentBackground);'>" +
                 sHtmlContent +
-                "</div>",
-            }),
+                "</div>"
+            })
           );
         } else {
           aItems.push(
@@ -442,33 +478,36 @@ sap.ui.define(
               content:
                 "<div style='padding:0.75rem;border:1px solid var(--sapList_BorderColor);border-radius:0.75rem;max-height:220px;overflow:auto;white-space:pre-wrap;word-break:break-word;background:var(--sapGroup_ContentBackground);'>" +
                 this._escapeHtml(sPlainContent) +
-                "</div>",
-            }),
+                "</div>"
+            })
           );
         }
 
         aItems.push(
-          new Title({ text: "Message", level: "H4" }).addStyleClass(
-            "sapUiMediumMarginTop",
-          ),
+          new Title({
+            text: this._getText("emailLogMessage"),
+            level: "H4"
+          }).addStyleClass("sapUiMediumMarginTop"),
+
           new MessageStrip({
-            text: sFirstMessage || "No message available.",
+            text: sFirstMessage || this._getText("emailLogNoMessage"),
             type: oLog.StatusState === "Error" ? "Error" : "Information",
-            showIcon: true,
-          }).addStyleClass("sapUiSmallMarginBottom"),
+            showIcon: true
+          }).addStyleClass("sapUiSmallMarginBottom")
         );
 
         this._oDetailDialog.removeAllContent();
+
         this._oDetailDialog.addContent(
           new VBox({
             width: "100%",
             items: [
               new VBox({
                 width: "100%",
-                items: aItems,
-              }).addStyleClass("sapUiResponsiveContentPadding"),
-            ],
-          }),
+                items: aItems
+              }).addStyleClass("sapUiResponsiveContentPadding")
+            ]
+          })
         );
 
         this._oDetailDialog.open();
@@ -480,14 +519,14 @@ sap.ui.define(
           items: [
             new Label({
               text: sLabel,
-              width: "130px",
+              width: "130px"
             }).addStyleClass("sapUiTinyMarginEnd"),
 
             new Text({
               text: sValue || "-",
-              wrapping: true,
-            }).addStyleClass("sapUiSmallMarginBottom"),
-          ],
+              wrapping: true
+            }).addStyleClass("sapUiSmallMarginBottom")
+          ]
         }).addStyleClass("sapUiTinyMarginBottom");
       },
 
@@ -499,6 +538,21 @@ sap.ui.define(
           .replace(/"/g, "&quot;")
           .replace(/'/g, "&#39;");
       },
+
+      // ======================
+      // i18n Helpers
+      // ======================
+
+      _getBundle: function () {
+        return this.getOwnerComponent()
+          .getModel("i18n")
+          .getResourceBundle();
+      },
+
+      _getText: function (sKey, aArgs) {
+        return this._getBundle().getText(sKey, aArgs);
+      }
+
     });
-  },
+  }
 );

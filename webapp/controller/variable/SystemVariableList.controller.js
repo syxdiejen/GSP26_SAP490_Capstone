@@ -3,8 +3,9 @@ sap.ui.define([
     "sap/ui/model/Filter",
     "sap/ui/model/FilterOperator",
     "sap/m/MessageToast",
-    "sap/m/MessageBox"
-], function (Controller, Filter, FilterOperator, MessageToast, MessageBox) {
+    "sap/m/MessageBox",
+    "zemail/template/app/util/ErrorHandler"
+], function (Controller, Filter, FilterOperator, MessageToast, MessageBox, ErrorHandler) {
     "use strict";
 
     return Controller.extend("zemail.template.app.controller.variable.SystemVariableList", {
@@ -115,9 +116,8 @@ sap.ui.define([
                     });
                 }.bind(this),
                 error: function (oError) {
-                    MessageBox.error("Không thể mở draft để chỉnh sửa");
-                    console.error(oError);
-                }
+                    ErrorHandler.show(oError, this._getBundle(), "systemVariableEditDraftFailed");
+                }.bind(this)
             });
         },
 
@@ -126,7 +126,7 @@ sap.ui.define([
             var oData = oContext.getObject();
             var sPath = oContext.getPath();
 
-            MessageBox.confirm("Bạn có chắc muốn xóa biến này?", {
+            MessageBox.confirm(this._getText("systemVariableDeleteConfirm"), {
                 onClose: function (sAction) {
                     if (sAction !== MessageBox.Action.OK) {
                         return;
@@ -140,28 +140,37 @@ sap.ui.define([
                                 IsActiveEntity: false
                             },
                             success: function () {
-                                MessageToast.show("Đã hủy draft");
+                                MessageToast.show(this._getText("systemVariableDraftDiscarded"));
                                 this.byId("systemVariableTable").getBinding("items").refresh();
                             }.bind(this),
                             error: function (oError) {
-                                MessageBox.error("Hủy draft thất bại");
-                                console.error(oError);
-                            }
+                                ErrorHandler.show(oError, this._getBundle(), "systemVariableDraftDiscardFailed");
+                            }.bind(this)
                         });
                         return;
                     }
 
                     this._oModel.remove(sPath, {
                         success: function () {
-                            MessageToast.show("Đã xóa biến hệ thống");
-                        },
+                            MessageToast.show(this._getText("systemVariableDeleted"));
+                            this.byId("systemVariableTable").getBinding("items").refresh();
+                        }.bind(this),
                         error: function (oError) {
-                            MessageBox.error("Xóa thất bại");
-                            console.error(oError);
-                        }
+                            ErrorHandler.show(oError, this._getBundle(), "systemVariableDeleteFailed");
+                        }.bind(this)
                     });
                 }.bind(this)
             });
-        }
+        },
+
+        _getBundle: function () {
+            return this.getOwnerComponent()
+                .getModel("i18n")
+                .getResourceBundle();
+        },
+
+        _getText: function (sKey, aArgs) {
+            return this._getBundle().getText(sKey, aArgs);
+        },
     });
 });

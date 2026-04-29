@@ -6,8 +6,9 @@ sap.ui.define(
     "sap/m/MessageBox",
     "sap/m/MessageToast",
     "sap/ui/core/BusyIndicator",
+    "zemail/template/app/util/ErrorHandler"
   ],
-  function (Controller, Filter, FilterOperator, MessageBox, MessageToast, BusyIndicator) {
+  function (Controller, Filter, FilterOperator, MessageBox, MessageToast, BusyIndicator, ErrorHandler) {
     "use strict";
 
     return Controller.extend("zemail.template.app.controller.sign.UserSignatureList", {
@@ -106,9 +107,9 @@ sap.ui.define(
               this._navToSignature(oCreated.SignId, false);
             }.bind(this),
 
-            error: function () {
+            error: function (oError) {
               this._hideBusy();
-              MessageBox.error(this._getText("signatureCreateDraftFailed"));
+              ErrorHandler.show(oError, this._getBundle(), "signatureCreateDraftFailed");
             }.bind(this),
           }
         );
@@ -134,9 +135,9 @@ sap.ui.define(
             this._navToSignature(oData.SignId, false);
           }.bind(this),
 
-          error: function () {
+          error: function (oError) {
             this._hideBusy();
-            MessageBox.error(this._getText("signatureEditDraftFailed"));
+            ErrorHandler.show(oError, this._getBundle(), "signatureEditDraftFailed");
           }.bind(this),
         });
       },
@@ -158,9 +159,9 @@ sap.ui.define(
             oModel.refresh(true);
           }.bind(this),
 
-          error: function () {
+          error: function (oError) {
             this._hideBusy();
-            MessageBox.error(this._getText("signatureDraftDiscardFailed"));
+            ErrorHandler.show(oError, this._getBundle(), "signatureDraftDiscardFailed");
           }.bind(this),
         });
       },
@@ -177,9 +178,9 @@ sap.ui.define(
             oModel.refresh(true);
           }.bind(this),
 
-          error: function () {
+          error: function (oError) {
             this._hideBusy();
-            MessageBox.error(this._getText("signatureDeleteFailed"));
+            ErrorHandler.show(oError, this._getBundle(), "signatureDeleteFailed");
           }.bind(this),
         });
       },
@@ -228,6 +229,12 @@ sap.ui.define(
           SignId: encodeURIComponent(sSignId),
           IsActiveEntity: String(bIsActiveEntity),
         });
+      },
+
+      _getBundle: function () {
+        return this.getOwnerComponent()
+          .getModel("i18n")
+          .getResourceBundle();
       },
 
       _getText: function (sKey, aArgs) {

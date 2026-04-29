@@ -1,5 +1,8 @@
-sap.ui.define(
-  ["sap/ui/core/mvc/Controller", "sap/m/MessageToast", "sap/m/MessageBox"],
+sap.ui.define([
+  "sap/ui/core/mvc/Controller",
+  "sap/m/MessageToast", 
+  "sap/m/MessageBox",
+],
   function (Controller, MessageToast, MessageBox) {
     "use strict";
 
@@ -102,11 +105,9 @@ sap.ui.define(
     // Helper: shared error handler for Prepare and Activate callFunction errors.
     // Reads from responseText errordetails, then sap-message header,
     // then UI5 MessageManager — whichever has a non-RAP_ message first.
-    function _handleActivateError(oError, sFallback) {
+    function _handleActivateError(oError, sFallback, oBundle) {
       if (_isAuthError(oError)) {
-        MessageBox.error(
-          "Your account are not allowed to make this modification",
-        );
+        MessageBox.error(oBundle.getText("systemVariableAuthFailed"));
         return;
       }
 
@@ -179,7 +180,7 @@ sap.ui.define(
           this.getView().setModel(
             new sap.ui.model.json.JSONModel({
               mode: "create",
-              title: "Create System Variable",
+              title: this._getText("systemVariableCreateTitle"),
             }),
             "viewState",
           );
@@ -200,7 +201,7 @@ sap.ui.define(
 
           this.getView().getModel("viewState").setData({
             mode: "edit",
-            title: "Edit System Variable",
+            title: this._getText("systemVariableEditTitle"),
           });
 
           var sPath = this._oModel.createKey("/SystemVariables", {
@@ -217,7 +218,7 @@ sap.ui.define(
         _onCreateMatched: function () {
           this.getView().getModel("viewState").setData({
             mode: "create",
-            title: "Create System Variable",
+            title: this._getText("systemVariableCreateTitle"),
           });
 
           var oContext = this._oModel.createEntry("/SystemVariables", {
@@ -236,7 +237,7 @@ sap.ui.define(
 
           if (!sValue || !sValue.trim()) {
             oEvent.getSource().setValueState("Error");
-            oEvent.getSource().setValueStateText("Variable Name là bắt buộc");
+            oEvent.getSource().setValueStateText(this._getText("systemVariableNameRequired"));
           } else {
             oEvent.getSource().setValueState("None");
           }
@@ -246,14 +247,14 @@ sap.ui.define(
           var oContext = this.getView().getBindingContext("sysVar");
 
           if (!oContext) {
-            MessageBox.error("Không tìm thấy dữ liệu cần lưu");
+            MessageBox.error(this._getText("systemVariableNoDataToSave"));
             return;
           }
 
           var oData = oContext.getObject();
 
           if (!oData.VarName || !oData.VarName.trim()) {
-            MessageBox.error("Variable Name là bắt buộc");
+            MessageBox.error(this._getText("systemVariableNameRequired"));
             return;
           }
 
@@ -272,10 +273,10 @@ sap.ui.define(
             });
             if (bHasAuthMsg) {
               MessageBox.error(
-                "Your account are not allowed to make this modification",
+                this._getText("systemVariableAuthFailed")
               );
             } else {
-              MessageToast.show("Không có thay đổi nào để lưu");
+              MessageToast.show(this._getText("systemVariableNoChanges"));
             }
             return;
           }
@@ -286,7 +287,7 @@ sap.ui.define(
             var iStatus = parseInt(oResponse && oResponse.statusCode, 10);
             if (iStatus === 401 || iStatus === 403) {
               MessageBox.error(
-                "Your account are not allowed to make this modification",
+                this._getText("systemVariableAuthFailed")
               );
             }
           }.bind(this);
@@ -298,22 +299,22 @@ sap.ui.define(
               var oBatchErr = _extractBatchError(oResponse);
               if (oBatchErr || _isAuthError(oResponse)) {
                 MessageBox.error(
-                  "Your account are not allowed to make this modification",
+                  this._getText("systemVariableAuthFailed")
                 );
                 console.error(oBatchErr || oResponse);
                 return;
               }
-              MessageToast.show("Đã lưu draft");
+              MessageToast.show(this._getText("systemVariableDraftSaved"));
               this._oModel.refresh(true);
             }.bind(this),
             error: function (oError) {
               this._oModel.detachRequestFailed(fnRequestFailed, this);
               if (_isAuthError(oError)) {
                 MessageBox.error(
-                  "Your account are not allowed to make this modification",
+                  this._getText("systemVariableAuthFailed")
                 );
               } else {
-                MessageBox.error("Lưu draft thất bại");
+                MessageBox.error(this._getText("systemVariableDraftSaveFailed"));
               }
               console.error(oError);
             }.bind(this),
@@ -324,14 +325,14 @@ sap.ui.define(
           var oContext = this.getView().getBindingContext("sysVar");
 
           if (!oContext) {
-            MessageBox.error("Không tìm thấy draft để activate");
+            MessageBox.error(this._getText("systemVariableNoDraftToPublish"));
             return;
           }
 
           var oData = oContext.getObject();
 
           if (!oData.VarName || !oData.VarName.trim()) {
-            MessageBox.error("Variable Name là bắt buộc");
+            MessageBox.error(this._getText("systemVariableNameRequired"));
             return;
           }
 
@@ -344,13 +345,14 @@ sap.ui.define(
                 IsActiveEntity: false,
               },
               success: function () {
-                MessageToast.show("Activate thành công");
+                MessageToast.show(this._getText("systemVariablePublishSuccess"));
                 this._oRouter.navTo("variablelist");
               }.bind(this),
               error: function (oError) {
                 _handleActivateError(
                   oError,
-                  "Publish thất bại: dữ liệu không hợp lệ",
+                  this._getText("systemVariablePublishFailed"),
+                  this._getBundle()
                 );
                 console.error(oError);
               }.bind(this),
@@ -373,7 +375,7 @@ sap.ui.define(
               }.bind(this),
               error: function (oError) {
                 // ValidateVarName failed → show your custom message
-                _handleActivateError(oError, "Dữ liệu không hợp lệ");
+                _handleActivateError(oError, this._getText("systemVariableInvalidData"), this._getBundle());
                 console.error(oError);
               }.bind(this),
             });
@@ -389,12 +391,12 @@ sap.ui.define(
                 if (oBatchErr) {
                   if (_isAuthError(oBatchErr)) {
                     MessageBox.error(
-                      "Your account are not allowed to make this modification",
+                      this._getText("systemVariableAuthFailed")
                     );
                   } else {
                     var sBatchMsg = _parseODataErrorMessage(
                       oBatchErr,
-                      "Lưu thất bại: dữ liệu không hợp lệ",
+                      this._getText("systemVariableDraftSaveFailed")
                     );
                     MessageBox.error(sBatchMsg);
                   }
@@ -407,10 +409,10 @@ sap.ui.define(
               error: function (oError) {
                 if (_isAuthError(oError)) {
                   MessageBox.error(
-                    "Your account are not allowed to make this modification",
+                    this._getText("systemVariableAuthFailed")
                   );
                 } else {
-                  MessageBox.error("Không thể lưu draft trước khi activate");
+                  MessageBox.error(this._getText("systemVariableDraftSaveFailed"));
                 }
                 console.error(oError);
               }.bind(this),
@@ -439,7 +441,7 @@ sap.ui.define(
                 IsActiveEntity: false,
               },
               success: function () {
-                MessageToast.show("Đã hủy draft");
+                MessageToast.show(this._getText("systemVariableDraftDiscarded"));
                 this._oModel.refresh(true);
                 this._oRouter.navTo("variablelist");
               }.bind(this),
@@ -459,13 +461,23 @@ sap.ui.define(
                   return;
                 }
 
-                MessageBox.error("Hủy draft thất bại");
+                MessageBox.error(this._getText("systemVariableDraftDiscardFailed"));
                 console.error(oError);
               }.bind(this),
             });
           } else {
             this._oRouter.navTo("variablelist");
           }
+        },
+
+        _getBundle: function () {
+          return this.getOwnerComponent()
+            .getModel("i18n")
+            .getResourceBundle();
+        },
+
+        _getText: function (sKey, aArgs) {
+          return this._getBundle().getText(sKey, aArgs);
         },
       },
     );

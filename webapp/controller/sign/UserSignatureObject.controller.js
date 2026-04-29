@@ -5,6 +5,7 @@ sap.ui.define(
     "sap/ui/core/BusyIndicator",
     "sap/m/MessageBox",
     "sap/m/MessageToast",
+    "zemail/template/app/util/ErrorHandler"
   ],
   function (
     Controller,
@@ -12,6 +13,7 @@ sap.ui.define(
     BusyIndicator,
     MessageBox,
     MessageToast,
+    ErrorHandler
   ) {
     "use strict";
 
@@ -128,7 +130,7 @@ sap.ui.define(
               },
               error: function (oError) {
                 that._hideBusy();
-                that._showODataError(oError, that._getText("signatureDraftSaveFailed"));
+                ErrorHandler.show(oError, that._getBundle(), "signatureDraftSaveFailed");
               },
             });
           } else {
@@ -154,7 +156,7 @@ sap.ui.define(
               },
               error: function (oError) {
                 that._hideBusy();
-                that._showODataError(oError, that._getText("signatureDraftUpdateFailed"));
+                ErrorHandler.show(oError, that._getBundle(), "signatureDraftUpdateFailed");
               },
             });
           }
@@ -180,10 +182,7 @@ sap.ui.define(
               },
               error: function (oError) {
                 that._hideBusy();
-                that._showODataError(
-                  oError,
-                  that._getText("signatureCreateBeforePublishFailed")
-                );
+                ErrorHandler.show(oError, that._getBundle(), "signatureCreateBeforePublishFailed");
               },
             });
           } else {
@@ -211,10 +210,7 @@ sap.ui.define(
               },
               error: function (oError) {
                 that._hideBusy();
-                that._showODataError(
-                  oError,
-                  that._getText("signatureSaveBeforePublishFailed")
-                );
+                ErrorHandler.show(oError, that._getBundle(), "signatureSaveBeforePublishFailed");
               },
             });
           }
@@ -265,7 +261,7 @@ sap.ui.define(
                 },
                 error: function (oError) {
                   that._hideBusy();
-                  that._showODataError(oError, that._getText("signatureDeleteFailed"));
+                  ErrorHandler.show(oError, that._getBundle(), "signatureDeleteFailed");
                 },
               });
             }.bind(this),
@@ -307,27 +303,6 @@ sap.ui.define(
 
         _navBackToList: function () {
             this.getOwnerComponent().getRouter().navTo("signlist");
-        },
-
-        _showODataError: function (oError, sDefaultMsg) {
-          var sMsg = sDefaultMsg || this._getText("odataDefaultError");
-
-          if (oError && oError.responseText) {
-            try {
-              var oResp = JSON.parse(oError.responseText);
-              sMsg =
-                oResp &&
-                oResp.error &&
-                oResp.error.message &&
-                oResp.error.message.value
-                  ? oResp.error.message.value
-                  : sMsg;
-            } catch (e) {
-              // ignore parse error
-            }
-          }
-
-          MessageBox.error(sMsg);
         },
 
         _getText: function (sKey, aArgs) {
@@ -375,7 +350,7 @@ sap.ui.define(
             }.bind(this),
             error: function (oError) {
               this._hideBusy();
-              this._showODataError(oError, this._getText("signaturePublishFailed"));
+              ErrorHandler.show(oError, this._getBundle(), "signaturePublishFailed");
             }.bind(this),
           });
         },
@@ -402,9 +377,15 @@ sap.ui.define(
             }.bind(this),
             error: function (oError) {
               this._hideBusy();
-              this._showODataError(oError, this._getText("signatureDraftDiscardFailed"));
+              ErrorHandler.show(oError, this._getBundle(), "signatureDraftDiscardFailed");
             }.bind(this),
           });
+        },
+
+        _getBundle: function () {
+          return this.getOwnerComponent()
+            .getModel("i18n")
+            .getResourceBundle();
         },
       },
     );

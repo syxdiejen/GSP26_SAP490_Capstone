@@ -230,7 +230,6 @@ sap.ui.define(
           },
 
           error: function () {
-<<<<<<< HEAD
             MessageToast.show(this._getText("detailSignatureLoadFailed"));
           }.bind(this)
         });
@@ -239,98 +238,7 @@ sap.ui.define(
       // ============================================================
       // Navigation & UI State
       // ============================================================
-=======
-            sap.m.MessageToast.show("Không tải được danh sách chữ ký");
-          },
-        });
-      },
 
-      onApplyVariablesPress: function () {
-        var oPreview = this.getView().getModel("preview");
-        var vars =
-          this.getView().getModel("variables").getProperty("/items") || [];
-        var body = oPreview.getProperty("/OriginalBodyContent") || "";
-
-        vars.forEach(function (v) {
-          body = body.split(v.token).join(v.value || "");
-        });
-
-        // Bọc thẻ div trước khi đẩy ra Preview
-        var sSafeContent =
-          "<div class='safe-preview-wrapper'>" + body + "</div>";
-
-        // Cập nhật giá trị
-        oPreview.setProperty("/BodyContent", body);
-        oPreview.setProperty("/BodyContentEdit", body); // Edit thì không cần bọc div
-        oPreview.setProperty("/BodyContentPreview", sSafeContent); // Preview thì bắt buộc bọc
-
-        sap.m.MessageToast.show("Đã apply biến");
-      },
-
-      onInsertSignature: function () {
-        var oSigModel = this.getView().getModel("signature");
-        var aItems = oSigModel.getProperty("/items") || [];
-        var sSelectedKey = oSigModel.getProperty("/selectedKey");
-
-        if (!sSelectedKey) {
-          sap.m.MessageBox.warning("Vui lòng chọn chữ ký");
-          return;
-        }
-
-        var oSelected = aItems.find(function (oItem) {
-          return oItem.SignId === sSelectedKey;
-        });
-
-        if (!oSelected || !oSelected.Content) {
-          sap.m.MessageBox.warning("Không tìm thấy nội dung chữ ký");
-          return;
-        }
-
-        var sSignature = oSelected.Content;
-        var sCurrentMode = this.getView()
-          .getModel("ui")
-          .getProperty("/bodyEditMode");
-        var sCurrentValue = "";
-
-        if (sCurrentMode === "visual") {
-          sCurrentValue = this.byId("bodyVisualEditor").getValue() || "";
-        } else if (sCurrentMode === "html") {
-          sCurrentValue = this.byId("htmlSourceEditor").getValue() || "";
-        }
-
-        if (sCurrentValue.indexOf(sSignature) !== -1) {
-          sap.m.MessageToast.show("Chữ ký đã tồn tại trong nội dung");
-          return;
-        }
-
-        var sNewValue = sCurrentValue
-          ? sCurrentValue + "<br><br>" + sSignature
-          : sSignature;
-
-        var oPreviewModel = this.getView().getModel("preview");
-        oPreviewModel.setProperty("/BodyContentEdit", sNewValue);
-        oPreviewModel.setProperty("/BodyContent", sNewValue);
-        oPreviewModel.setProperty(
-          "/BodyContentPreview",
-          "<div class='safe-preview-wrapper'>" + sNewValue + "</div>",
-        );
-
-        sap.m.MessageToast.show("Đã chèn chữ ký");
-      },
-
-      onResetBodyPress: function () {
-        var oPreview = this.getView().getModel("preview");
-        var original =
-          oPreview.getProperty("/OriginalBodyContent") ||
-          "<div>No content</div>";
-
-        oPreview.setProperty("/BodyContent", original);
-        oPreview.setProperty("/BodyContentEdit", original);
-        oPreview.setProperty("/BodyContentPreview", original);
-
-        this._loadBodyVariables(original);
-      },
->>>>>>> 1a8d0b16f0397ee0cfe1f0e7e116ac246a86a76c
 
       onNavBack: function () {
         var prev = History.getInstance().getPreviousHash();
@@ -605,51 +513,8 @@ sap.ui.define(
           ? oContext.getProperty("TemplateId")
           : oPreview.TemplateId || "";
 
-<<<<<<< HEAD
         var sCurrentRawBody = this._getCurrentEditorContent(oPreview);
         var oVariableResult = this._applyVariablesForSending(sCurrentRawBody);
-=======
-        // 🔥 FIX 1: Lấy nội dung THỰC TẾ trực tiếp từ Editor đang active
-        var sCurrentMode = this.getView()
-          .getModel("ui")
-          .getProperty("/bodyEditMode");
-        var sCurrentRawBody = "";
-
-        if (sCurrentMode === "visual") {
-          sCurrentRawBody = this.byId("bodyVisualEditor").getValue();
-        } else if (sCurrentMode === "html") {
-          sCurrentRawBody = this.byId("htmlSourceEditor").getValue();
-        }
-
-        // Fallback: Nếu không móc được Editor thì lấy tạm từ Model
-        if (!sCurrentRawBody) {
-          sCurrentRawBody =
-            oPreview.BodyContentEdit || oPreview.OriginalBodyContent || "";
-        }
-
-        // 🔥 FIX 2: Apply biến trực tiếp vào nội dung Editor vừa lấy ra
-        var sFinalBodyForGoogle = sCurrentRawBody;
-        var aVarsForABAP = [];
-        var aVars =
-          this.getView().getModel("variables").getProperty("/items") || [];
-
-        aVars.forEach(function (v) {
-          // Thay thế biến cho bản HTML sẽ gửi qua Google
-          sFinalBodyForGoogle = sFinalBodyForGoogle
-            .split(v.token)
-            .join(v.value || "");
-
-          // Gom biến để lát gửi xuống SAP ghi Log
-          aVarsForABAP.push({
-            VAR_NAME: v.name,
-            VAR_VALUE: v.value ? v.value.trim() : "",
-          });
-        });
-
-        // Đóng gói JSON mảng biến cho ABAP
-        var sVarMappingJson =
-          aVarsForABAP.length > 0 ? JSON.stringify(aVarsForABAP) : "";
->>>>>>> 1a8d0b16f0397ee0cfe1f0e7e116ac246a86a76c
 
         var payload = {
           recipient: oMail.to,

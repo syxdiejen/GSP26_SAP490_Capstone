@@ -11,6 +11,17 @@ yarn-error.log*
 dist/
 build/
 
+# MTA/CF build output
+resources/
+mta_archives/
+*.mtar
+
+# Deploy operation logs downloaded by cf dmol
+mta-op-*/
+
+# Generated zipped HTML5 app folder/artifact
+zemailtemplateapp-*/
+
 # environment
 .env
 .env.*

@@ -1,0 +1,2 @@
+sap.ui.define([],function(){"use strict";return{statusText:function(t){return t?"Active":"Inactive"},statusState:function(t){return t?"Success":"Error"},formatHtmlBody:function(t){if(!Array.isArray(t)||t.length===0){return"<div>No content</div>"}return t.map(function(t){return t.Content||""}).join("\n")}}});
+//# sourceMappingURL=formatter.js.map

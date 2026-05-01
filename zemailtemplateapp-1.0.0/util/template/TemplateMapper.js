@@ -1,0 +1,2 @@
+sap.ui.define([],function(){"use strict";function e(e){var t=e.to_Body&&e.to_Body.results||[];var n=t[0]||null;return{templateName:e.TemplateName||"",department:e.Department||"",category:e.Category||"",subject:e.Subject||"",dbKey:e.DbKey||"",isActiveEntity:!!e.IsActiveEntity,bodyDbKey:n?n.DbKey||"":"",bodyLanguage:n?n.Language||"EN":"EN",bodyVersion:n?n.Version||"001":"001",bodyLineType:n?n.LineType||"H":"H",bodyHtml:n?n.Content||"":""}}return{mapHeaderToFormData:e}});
+//# sourceMappingURL=TemplateMapper.js.map

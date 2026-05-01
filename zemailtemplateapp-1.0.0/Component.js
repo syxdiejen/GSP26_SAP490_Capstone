@@ -1,0 +1,2 @@
+sap.ui.define(["sap/ui/core/UIComponent","sap/ui/model/json/JSONModel"],(e,t)=>{"use strict";return e.extend("zemail.template.app.Component",{metadata:{interfaces:["sap.ui.core.IAsyncContentCreation"],manifest:"json"},init(){e.prototype.init.apply(this,arguments);const a=new t;a.loadData("test/mockData.json");this.setModel(a,"local");const i=new t({EmailTemplates:[],AllEmailTemplates:[]});this.setModel(i,"email");this.getRouter().initialize()}})});
+//# sourceMappingURL=Component.js.map

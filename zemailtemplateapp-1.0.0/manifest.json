@@ -1,0 +1,199 @@
+{
+	"_version": "1.65.0",
+	"sap.app": {
+		"id": "zemail.template.app",
+		"i18n": {
+			"bundleUrl": "i18n/i18n.properties",
+			"supportedLocales": [
+				""
+			]
+		},
+		"title": "{{appTitle}}",
+		"description": "{{appDescription}}",
+		"type": "application",
+		"applicationVersion": {
+			"version": "1.0.0"
+		},
+		"dataSources": {
+			"emailService": {
+				"uri": "odata/?sap-client=324",
+				"type": "OData",
+				"settings": {
+					"odataVersion": "2.0"
+				}
+			}
+		}
+	},
+	"sap.ui": {
+		"technology": "UI5",
+		"deviceTypes": {
+			"desktop": true,
+			"tablet": true,
+			"phone": true
+		}
+	},
+	"sap.ui5": {
+		"dependencies": {
+			"minUI5Version": "1.108.0",
+			"libs": {
+				"sap.ui.core": {},
+				"sap.m": {},
+				"sap.f": {},
+				"sap.tnt": {},
+				"sap.ui.layout": {},
+				"sap.viz": {}
+			}
+		},
+		"models": {
+			"i18n": {
+				"type": "sap.ui.model.resource.ResourceModel",
+				"settings": {
+					"bundleName": "zemail.template.app.i18n.i18n",
+					"supportedLocales": [
+						"",
+						"en",
+						"vi"
+					],
+					"fallbackLocale": "en"
+				}
+			},
+			"": {
+				"dataSource": "emailService",
+				"type": "sap.ui.model.odata.v2.ODataModel",
+				"settings": {
+					"defaultBindingMode": "TwoWay",
+					"defaultCountMode": "Inline",
+					"useBatch": false
+				}
+			}
+		},
+		"rootView": {
+			"viewName": "zemail.template.app.view.App",
+			"type": "XML",
+			"id": "app"
+		},
+		"routing": {
+			"config": {
+				"routerClass": "sap.m.routing.Router",
+				"type": "View",
+				"viewType": "XML",
+				"path": "zemail.template.app.view",
+				"controlId": "app",
+				"controlAggregation": "pages",
+				"async": true
+			},
+			"routes": [
+				{
+					"pattern": "",
+					"name": "templatelist",
+					"target": "templatelist"
+				},
+				{
+					"pattern": "template/create",
+					"name": "templatecreate",
+					"target": "templateobject"
+				},
+				{
+					"pattern": "template/{DbKey}/{IsActiveEntity}",
+					"name": "templateobject",
+					"target": "templateobject"
+				},
+				{
+					"pattern": "detail/{DbKey}/{IsActiveEntity}",
+					"name": "detail",
+					"target": "detail"
+				},
+				{
+					"pattern": "dashboard",
+					"name": "dashboard",
+					"target": "dashboard"
+				},
+				{
+					"pattern": "emaillogs",
+					"name": "emaillogs",
+					"target": "emaillogs"
+				},
+				{
+					"pattern": "variablelist",
+					"name": "variablelist",
+					"target": "variablelist"
+				},
+				{
+					"pattern": "sysvar/create",
+					"name": "SystemVariableCreate",
+					"target": "SystemVariableObject"
+				},
+				{
+					"pattern": "sysvar/{VarId}/{IsActiveEntity}",
+					"name": "SystemVariableObject",
+					"target": "SystemVariableObject"
+				},
+				{
+					"name": "signlist",
+					"pattern": "signlist",
+					"target": "signlist"
+				},
+				{
+					"name": "signobject",
+					"pattern": "signobject/{SignId}/{IsActiveEntity}",
+					"target": "signobject"
+				},
+				{
+					"name": "signcreate",
+					"pattern": "signcreate",
+					"target": "signobject"
+				}
+			],
+			"targets": {
+				"templatelist": {
+					"id": "templatelist",
+					"name": "template.EmailTemplateList"
+				},
+				"templateobject": {
+					"id": "templateobject",
+					"name": "template.EmailTemplateCreate"
+				},
+				"detail": {
+					"id": "detail",
+					"name": "template.Detail"
+				},
+				"dashboard": {
+					"id": "dashboard",
+					"name": "dashboard.Dashboard"
+				},
+				"emaillogs": {
+					"id": "emaillogs",
+					"name": "logs.EmailLogs"
+				},
+				"variablelist": {
+					"id": "variablelist",
+					"name": "variable.SystemVariableList"
+				},
+				"SystemVariableObject": {
+					"id": "SystemVariableObject",
+					"name": "variable.SystemVariableObject"
+				},
+				"signlist": {
+					"viewName": "sign.UserSignatureList",
+					"viewType": "XML"
+				},
+				"signobject": {
+					"viewName": "sign.UserSignatureObject",
+					"viewType": "XML"
+				}
+			}
+		},
+		"resources": {
+			"css": [
+				{
+					"uri": "css/style.css"
+				}
+			]
+		},
+		"flexBundle": false
+	},
+	"sap.cloud": {
+		"public": true,
+		"service": "zemail.template.app"
+	}
+}

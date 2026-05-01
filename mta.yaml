@@ -1,0 +1,100 @@
+_schema-version: "3.2"
+ID: zemail-template-app
+version: 1.0.0
+
+parameters:
+  deploy_mode: html5-repo
+  enable-parallel-deployments: true
+
+modules:
+  - name: zemailtemplateapp
+    type: html5
+    path: .
+    build-parameters:
+      builder: custom
+      commands:
+        - npm install
+        - npm run build:cf
+      build-result: dist
+      supported-platforms: []
+
+  - name: zemail-template-app-app-content
+    type: com.sap.application.content
+    path: .
+    requires:
+      - name: zemail-template-html5-repo-host
+        parameters:
+          content-target: true
+    build-parameters:
+      build-result: resources
+      requires:
+        - name: zemailtemplateapp
+          artifacts:
+            - zemailtemplateapp.zip
+          target-path: resources/
+
+  - name: zemail-template-app-dest-content
+    type: com.sap.application.content
+    requires:
+      - name: zemail-template-destination
+        parameters:
+          content-target: true
+      - name: zemail-template-html5-repo-host
+        parameters:
+          service-key:
+            name: zemail-template-html5-repo-host-key
+      - name: zemail-template-xsuaa
+        parameters:
+          service-key:
+            name: zemail-template-xsuaa-key
+    parameters:
+      content:
+        instance:
+          destinations:
+            - Name: zemail_template_app_repo_host
+              ServiceInstanceName: zemail-template-html5-repo-host
+              ServiceKeyName: zemail-template-html5-repo-host-key
+              sap.cloud.service: zemail.template.app
+
+            - Name: zemail_template_app_uaa
+              Authentication: OAuth2UserTokenExchange
+              ServiceInstanceName: zemail-template-xsuaa
+              ServiceKeyName: zemail-template-xsuaa-key
+              sap.cloud.service: zemail.template.app
+
+          existing_destinations_policy: update
+    build-parameters:
+      no-source: true
+
+resources:
+  - name: zemail-template-destination
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: destination
+      service-plan: lite
+      config:
+        HTML5Runtime_enabled: true
+        init_data:
+          instance:
+            destinations:
+              - Name: ui5
+                Authentication: NoAuthentication
+                ProxyType: Internet
+                Type: HTTP
+                URL: https://ui5.sap.com
+
+              - Name: GSP26_SAP_BACKEND
+                Authentication: BasicAuthentication
+                Description: ABAP RAP Backend for Capstone
+                ProxyType: Internet
+                Type: HTTP
+                URL: https://s40lp1.ucc.cit.tum.de:8100
+                sap-client: "324"
+
+            existing_destinations_policy: update
+
+  - name: zemail-template-html5-repo-host
+    type: org.cloudfoundry.existing-service
+
+  - name: zemail-template-xsuaa
+    type: org.cloudfoundry.existing-service

@@ -5,10 +5,19 @@
   "scripts": {
     "start": "ui5 serve -o index.html",
     "build": "ui5 build --all --clean-dest",
-    "serve-dist": "ws --compress -d dist --open"
+    "serve-dist": "ws --compress -d dist --open",
+    "build:managed": "ui5 build --config ui5.yaml --clean-dest --dest dist",
+    "build:cf": "ui5 build preload --clean-dest --config ui5-deploy.yaml --include-task=generateCachebusterInfo",
+    "build:mta": "rimraf resources mta_archives && mbt build",
+    "deploy-config": "fiori add deploy-config",
+    "deploy": "fiori cfDeploy",
+    "undeploy": "cf undeploy zemail-template-app --delete-services --delete-service-keys --delete-service-brokers"
   },
   "devDependencies": {
     "@sap/ux-ui5-tooling": "^1.21.0",
-    "@ui5/cli": "^4.0.49"
+    "@ui5/cli": "^4.0.49",
+    "mbt": "^1.2.18",
+    "rimraf": "^5.0.0",
+    "ui5-task-zipper": "^0.5.1"
   }
 }

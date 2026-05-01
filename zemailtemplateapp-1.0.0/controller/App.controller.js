@@ -1,2 +1,0 @@
-sap.ui.define(["sap/ui/core/mvc/Controller"],e=>{"use strict";return e.extend("zemail.template.app.controller.App",{onItemSelect:function(e){const t=e.getParameter("item").getKey();const n=this.getOwnerComponent().getRouter();n.navTo(t)}})});
-//# sourceMappingURL=App.controller.js.map

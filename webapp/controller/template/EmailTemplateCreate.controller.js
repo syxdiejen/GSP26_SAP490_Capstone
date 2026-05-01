@@ -9,7 +9,8 @@ sap.ui.define([
     "zemail/template/app/service/template/TemplateRepository",
     "zemail/template/app/util/template/EditorHelper",
     "zemail/template/app/util/template/VariableHelper",
-    "zemail/template/app/util/template/TemplateMapper"
+    "zemail/template/app/util/template/TemplateMapper",
+    "zemail/template/app/util/ErrorHandler"
 ], function (
     Controller,
     MessageToast,
@@ -21,7 +22,8 @@ sap.ui.define([
     TemplateRepository,
     EditorHelper,
     VariableHelper,
-    TemplateMapper
+    TemplateMapper,
+    ErrorHandler
 ) {
     "use strict";
 
@@ -40,7 +42,7 @@ sap.ui.define([
 
             var oWizard = this.byId("createWizard");
             if (oWizard) {
-                oWizard.setFinishButtonText("Reload Preview");
+                oWizard.setFinishButtonText(this._getBundle().getText("templateReloadPreview"));
                 oWizard.attachComplete(this.onReloadPreviewPress, this);
             }
         },
@@ -58,6 +60,12 @@ sap.ui.define([
             this.getView().setBusy(!!bBusy);
         },
 
+        _getBundle: function () {
+            return this.getOwnerComponent()
+                .getModel("i18n")
+                .getResourceBundle();
+        },
+
         // =========================================================
         // Route Handlers
         // =========================================================
@@ -65,7 +73,7 @@ sap.ui.define([
             CreateModel.resetForm(this._getCreateModel());
 
             this._getCreateModel().setProperty("/mode", "create");
-            this._getCreateModel().setProperty("/title", "Create Email Template");
+            this._getCreateModel().setProperty("/title", this._getBundle().getText("templateCreateTitle"));
             this._getCreateModel().setProperty("/isActiveEntity", false);
 
             this._updateStepBasicValidation();
@@ -96,7 +104,7 @@ sap.ui.define([
                     this._updateBodyHtml(oFormData.bodyHtml);
 
                     oModel.setProperty("/mode", "edit");
-                    oModel.setProperty("/title", "Edit Email Template");
+                    oModel.setProperty("/title", this._getBundle().getText("templateEditTitle"));
                     oModel.setProperty("/isDraftCreated", true);
 
                     this._updateStepBasicValidation();
@@ -109,8 +117,7 @@ sap.ui.define([
                 }.bind(this))
                 .catch(function (oError) {
                     this._setBusy(false);
-                    console.error("readTemplate failed:", oError);
-                    MessageBox.error(this._getErrorMessage(oError, "Không tải được template."));
+                    ErrorHandler.show(oError, this._getBundle(), "templateReadFailed");
                 }.bind(this));
         },
 
@@ -148,18 +155,18 @@ sap.ui.define([
                 .then(function (sDbKey) {
                     if (bActivateAfterSave) {
                         return this._activateDraft(sDbKey).then(function () {
-                            MessageToast.show("Template published successfully");
+                            MessageToast.show(this._getBundle().getText("templatePublishedSuccess"));
                             this._navBackToList();
                         }.bind(this));
                     }
 
-                    MessageToast.show("Draft saved successfully");
+                    MessageToast.show(this._getBundle().getText("templateDraftSavedSuccess"));
                     this._navBackToList();
                     return Promise.resolve();
                 }.bind(this))
                 .catch(function (oError) {
-                    MessageBox.error(oError.message || "Save failed");
-                })
+                    ErrorHandler.show(oError, this._getBundle(), oError.titleKey || "templateSaveFailed");
+                }.bind(this))
                 .finally(function () {
                     this._setBusy(false);
                 }.bind(this));
@@ -189,8 +196,9 @@ sap.ui.define([
         _createHeader: function (oHeaderPayload) {
             return TemplateRepository.createHeader(this._getODataModel(), oHeaderPayload)
                 .catch(function (oError) {
-                    throw new Error(this._getErrorMessage(oError, "Create Header failed"));
-                }.bind(this));
+                    oError.titleKey = "templateCreateHeaderFailed";
+                    throw oError;
+                });
         },
 
         _updateHeaderDraft: function () {
@@ -199,8 +207,9 @@ sap.ui.define([
 
             return TemplateRepository.updateHeaderDraft(this._getODataModel(), sDbKey, oPayload)
                 .catch(function (oError) {
-                    throw new Error(this._getErrorMessage(oError, "Update Header failed"));
-                }.bind(this));
+                    oError.titleKey = "templateUpdateHeaderFailed";
+                    throw oError;
+                });
         },
 
         _createBodyDraft: function (sDbKey) {
@@ -210,8 +219,9 @@ sap.ui.define([
 
             return TemplateRepository.createBodyDraft(this._getODataModel(), sDbKey, oBodyPayload)
                 .catch(function (oError) {
-                    throw new Error(this._getErrorMessage(oError, "Create Body failed"));
-                }.bind(this));
+                    oError.titleKey = "templateCreateBodyFailed";
+                    throw oError;
+                });
         },
 
         _upsertBodyDraft: function () {
@@ -228,15 +238,17 @@ sap.ui.define([
 
             return TemplateRepository.updateBodyDraft(this._getODataModel(), sBodyDbKey, oPayload)
                 .catch(function (oError) {
-                    throw new Error(this._getErrorMessage(oError, "Update Body failed"));
-                }.bind(this));
+                    oError.titleKey = "templateUpdateBodyFailed";
+                    throw oError;
+                });
         },
 
         _activateDraft: function (sDbKey) {
             return TemplateRepository.activateDraft(this._getODataModel(), sDbKey)
                 .catch(function (oError) {
-                    throw new Error(this._getErrorMessage(oError, "Activate failed"));
-                }.bind(this));
+                    oError.titleKey = "templateActivateFailed";
+                    throw oError;
+                });
         },
 
         // =========================================================
@@ -249,7 +261,9 @@ sap.ui.define([
             var oResult = TemplateValidator.validateForm(oData);
 
             if (!oResult.valid) {
-                MessageBox.warning(oResult.message);
+                MessageBox.warning(
+                    this._getBundle().getText(oResult.messageKey || "templateInvalidData")
+                );
                 return false;
             }
 
@@ -322,7 +336,7 @@ sap.ui.define([
             this._flushCurrentEditor();
             this.onPreview();
 
-            MessageToast.show("Preview reloaded");
+            MessageToast.show(this._getBundle().getText("templatePreviewReloaded"));
 
             var oWizard = this.byId("createWizard");
             var oStepPreview = this.byId("stepPreview");
@@ -381,7 +395,7 @@ sap.ui.define([
                     this._getCreateModel().setProperty("/availableVariables", aVariables);
                 }.bind(this))
                 .catch(function (oError) {
-                    MessageBox.error(this._getErrorMessage(oError, "Failed to load system variables"));
+                    ErrorHandler.show(oError, this._getBundle(), "templateSystemVariablesLoadFailed");
                 }.bind(this));
         },
 
@@ -390,13 +404,13 @@ sap.ui.define([
             var oContext = oItem.getBindingContext("create");
 
             if (!oContext) {
-                MessageBox.warning("Cannot determine selected variable");
+                MessageBox.warning(this._getBundle().getText("templateVariableCannotDetermine"));
                 return;
             }
 
             var sToken = String(oContext.getProperty("token") || "").trim();
             if (!sToken) {
-                MessageBox.warning("Selected variable has no token");
+                MessageBox.warning(this._getBundle().getText("templateVariableNoToken"));
                 return;
             }
 
@@ -437,7 +451,9 @@ sap.ui.define([
                     EditorHelper.pushToEditors(this, sNewValue);
 
                     oCodeEditor.focus();
-                    MessageToast.show("Variable inserted: " + sToken);
+                    MessageToast.show(
+                        this._getBundle().getText("templateVariableInserted", [sToken])
+                    );
                     return;
                 }
             } catch (e) {
@@ -473,7 +489,7 @@ sap.ui.define([
                         this._updateBodyHtml(sNewValue);
                         EditorHelper.pushToEditors(this, sNewValue);
 
-                        MessageToast.show("Variable inserted: " + sToken);
+                        MessageToast.show(this._getBundle().getText("templateVariableInserted", [sToken]));
                         return;
                     }
                 }
@@ -494,7 +510,7 @@ sap.ui.define([
             this._updateBodyHtml(sNewHtml);
             EditorHelper.pushToEditors(this, sNewHtml);
 
-            MessageToast.show("Variable inserted: " + sToken);
+            MessageToast.show(this._getBundle().getText("templateVariableInserted", [sToken]));
         },
 
         onScanVariables: function () {
@@ -509,46 +525,28 @@ sap.ui.define([
 
             var sBodyHtml = String(this._getCreateModel().getProperty("/bodyHtml") || "");
             this._updateBodyHtml(sBodyHtml);
-            MessageToast.show("Variables rescanned");
+            MessageToast.show(this._getBundle().getText("templateVariablesRescanned"));
         },
 
         // =========================================================
         // Utility
         // =========================================================
-        _getErrorMessage: function (oError, sFallbackMessage) {
-            try {
-                if (oError && oError.responseText) {
-                    var oResponse = JSON.parse(oError.responseText);
-                    if (oResponse && oResponse.error && oResponse.error.message && oResponse.error.message.value) {
-                        return oResponse.error.message.value;
-                    }
-                }
-
-                if (oError && oError.message) {
-                    return oError.message;
-                }
-
-                return sFallbackMessage || "Operation failed";
-            } catch (e) {
-                return (oError && oError.message) || sFallbackMessage || "Operation failed";
-            }
-        },
 
         _validateBasicInfo: function () {
             var oData = this._getCreateModel().getData();
 
             if (!TemplateNormalizer.trim(oData.templateName)) {
-                MessageBox.warning("Please enter Template Name");
+                MessageBox.warning(this._getBundle().getText("templateNameRequired"));
                 return false;
             }
 
             if (!TemplateNormalizer.trim(oData.department)) {
-                MessageBox.warning("Please enter Department");
+                MessageBox.warning(this._getBundle().getText("templateDepartmentRequired"));
                 return false;
             }
 
             if (!TemplateNormalizer.trim(oData.category)) {
-                MessageBox.warning("Please select Category");
+                MessageBox.warning(this._getBundle().getText("templateCategoryRequired"));
                 return false;
             }
 
@@ -570,11 +568,11 @@ sap.ui.define([
 
             TemplateRepository.discardDraft(this._getODataModel(), sDbKey)
                 .then(function () {
-                    MessageToast.show("Draft discarded");
+                    MessageToast.show(this._getBundle().getText("templateDraftDiscarded"));
                     this._navBackToList();
                 }.bind(this))
                 .catch(function (oError) {
-                    MessageBox.error(this._getErrorMessage(oError, "Discard failed"));
+                    ErrorHandler.show(oError, this._getBundle(), "templateDiscardFailed");
                 }.bind(this));
         },
 

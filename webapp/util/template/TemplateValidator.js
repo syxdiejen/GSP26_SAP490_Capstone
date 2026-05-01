@@ -15,56 +15,56 @@ sap.ui.define([
         if (!sTemplateName) {
             return {
                 valid: false,
-                message: "Please enter Template Name"
+                messageKey: "templateNameRequired"
             };
         }
 
         if (sSenderEmail && !TemplateNormalizer.isValidEmail(sSenderEmail)) {
             return {
                 valid: false,
-                message: "Please enter a valid Sender Email"
+                messageKey: "templateSenderEmailInvalid"
             };
         }
 
         if (!sLanguage) {
             return {
                 valid: false,
-                message: "Please enter Language"
+                messageKey: "templateLanguageRequired"
             };
         }
 
         if (!sVersion) {
             return {
                 valid: false,
-                message: "Please enter Version"
+                messageKey: "templateVersionRequired"
             };
         }
 
         if (TemplateNormalizer.trim(oData.bodyVersion).length > 3) {
             return {
                 valid: false,
-                message: "Version must be at most 3 characters"
+                messageKey: "templateVersionMaxLength"
             };
         }
 
         if (!sLineType) {
             return {
                 valid: false,
-                message: "Please enter Line Type"
+                messageKey: "templateLineTypeRequired"
             };
         }
 
         if (TemplateNormalizer.trim(oData.bodyLineType).length !== 1) {
             return {
                 valid: false,
-                message: "Line Type must be exactly 1 character"
+                messageKey: "templateLineTypeExactLength"
             };
         }
 
         if (!sBodyHtml.trim()) {
             return {
                 valid: false,
-                message: "Please enter Email Body HTML"
+                messageKey: "templateBodyHtmlRequired"
             };
         }
 

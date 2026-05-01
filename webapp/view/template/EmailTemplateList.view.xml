@@ -84,11 +84,11 @@
                         </items>
                     </Select>
 
-                    <Button
+                    <!-- <Button
                         icon="sap-icon://filter"
                         type="Transparent"
                         text="More Filters"
-                    />
+                    /> -->
                 </HBox>
             </f:DynamicPageHeader>
         </f:header>
